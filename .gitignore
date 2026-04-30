@@ -8,3 +8,4 @@ assist/
 *.db-wal
 .env
 *.log
+riad-server
