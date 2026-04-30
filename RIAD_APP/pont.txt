@@ -1,0 +1,90 @@
+our construire une application hybride (Locale + API) qui soit robuste, nous allons prendre l'exemple d'un Gestionnaire de Stock.
+
+C'est l'exemple parfait : tu veux pouvoir scanner des produits sans internet (Local), mais synchroniser les quantités avec ton équipe (API).
+1. Le "Cerveau" Partagé (pkg/logic/stock.go)
+
+Ce fichier est le seul qui contient les calculs. Il sera utilisé par Wails (Desktop), par ton serveur (API) et éventuellement traduit ou compilé pour Android.
+Go
+
+package logic
+
+import "errors"
+
+type Product struct {
+    ID    string `json:"id"`
+    Name  string `json:"name"`
+    Count int    `json:"count"`
+}
+
+// UpdateCount calcule le nouveau stock et vérifie qu'on ne descend pas sous zéro.
+// Cette règle est la même sur PC, Mobile ou Serveur.
+func UpdateCount(currentCount int, change int) (int, error) {
+    newCount := currentCount + change
+    if newCount < 0 {
+        return currentCount, errors.Add("le stock ne peut pas être négatif")
+    }
+    return newCount, nil
+}
+
+2. Le Frontend Vue.js (src/services/stockService.js)
+
+Voici comment ton interface décide d'utiliser le mode "Local" (Wails/Mobile) ou le mode "Cloud" (API).
+JavaScript
+
+export const stockService = {
+    async updateStock(productId, change) {
+        // 1. D'abord, on tente de sauvegarder LOCALEMENT (Rapidité)
+        let success = false;
+        if (window.wails) {
+            success = await wails.UpdateLocalStock(productId, change);
+        } else if (window.Android) {
+            success = window.Android.updateLocalStock(productId, change);
+        }
+
+        // 2. Ensuite, on envoie à l'API pour synchroniser avec les autres
+        if (navigator.onLine) {
+            try {
+                await fetch('https://api.tonstock.com/sync', {
+                    method: 'POST',
+                    body: JSON.stringify({ productId, change })
+                });
+                console.log("Synchronisé avec le cloud");
+            } catch (e) {
+                console.warn("Mode offline : synchronisation reportée");
+            }
+        }
+        return success;
+    }
+};
+
+3. Le Pont Desktop (main.go - Wails)
+
+C'est ici que tu utilises SQLite pour stocker les données sur le disque dur du PC. SQLite est génial car le même fichier de base de données fonctionne sur Android !
+Go
+
+func (a *App) UpdateLocalStock(id string, change int) bool {
+    // 1. Récupérer le stock actuel en base de données (SQLite)
+    current := db.Query("SELECT count FROM products WHERE id=?", id)
+
+    // 2. Appeler le cerveau (Logic)
+    newCount, err := logic.UpdateCount(current, change)
+    if err != nil {
+        return false
+    }
+
+    // 3. Sauvegarder le résultat
+    db.Exec("UPDATE products SET count=? WHERE id=?", newCount, id)
+    return true
+}
+
+4. Pourquoi c'est la structure parfaite pour Android ?
+
+Quand tu seras prêt pour Android, voici ton plan d'action sans rien réécrire :
+
+    Le Frontend : Tu prends ton dossier dist (Vue.js) et tu le mets dans ton projet Android. Il utilisera window.Android automatiquement grâce à ton code dans stockService.js.
+
+    La Logique : * Option A (Facile) : Tu gardes ton Go sur un serveur. Ton Android fait des fetch (API).
+
+        Option B (Robuste/Offline) : Tu utilises gomobile pour transformer pkg/logic en fichier .aar. Tu l'importes dans Android Studio.
+
+    La Base de données : Tu utilises SQLite sur Android (très standard). Les requêtes SQL que tu as écrites pour Wails seront exactement les mêmes en Java/Kotlin.

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+bin/
+build/
+assist/
+*.db
+*.db-shm
+*.db-wal
+.env
+*.log

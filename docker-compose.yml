@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: riad-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: riad
+    volumes:
+      - riad-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ./RIAD_SERVER
+      dockerfile: Dockerfile
+    container_name: riad-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    env_file:
+      - ./RIAD_SERVER/.env
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/riad?sslmode=disable
+    restart: unless-stopped
+
+volumes:
+  riad-postgres-data:
