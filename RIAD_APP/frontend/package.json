@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@wailsio/runtime": "latest",
-    "vue": "^3.2.45"
+    "pinia": "^3.0.4",
+    "vue": "^3.2.45",
+    "vue-router": "^5.0.6"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.0.0",
