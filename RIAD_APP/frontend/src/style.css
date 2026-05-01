@@ -1,3 +1,45 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl shadow-glass;
+  }
+  .card {
+    @apply bg-white rounded-2xl border border-riad-100 shadow-lux hover:shadow-xl transition-all duration-300;
+  }
+  .badge {
+    @apply px-2.5 py-0.5 text-xs font-bold rounded-full tracking-wide;
+  }
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-riad-400 hover:bg-riad-800 hover:text-riad-200 transition-all duration-300 text-sm font-medium relative overflow-hidden;
+  }
+  .sidebar-link.active {
+    @apply bg-gradient-to-r from-gold-500/20 to-gold-500/5 text-gold-400 border-r-2 border-gold-500;
+  }
+  .sidebar-link::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-gold-500/0 via-gold-500/10 to-gold-500/0 opacity-0 transition-opacity duration-500;
+  }
+  .sidebar-link:hover::before {
+    @apply opacity-100;
+  }
+  .ornament {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4c8a4' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    animation: ornament-float 20s linear infinite;
+  }
+  .glass-header {
+    @apply bg-riad-950/80 backdrop-blur-md border-b border-riad-800/50;
+  }
+  .input-lux {
+    @apply w-full bg-riad-800/50 border border-riad-700/50 rounded-xl px-4 py-2.5 text-white placeholder-riad-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500/50 transition-all duration-300;
+  }
+}
+
+@keyframes ornament-float {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');

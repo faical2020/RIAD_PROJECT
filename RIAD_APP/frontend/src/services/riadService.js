@@ -17,7 +17,7 @@ export const riadService = {
             localStorage.setItem('role', data.role);
             return data;
         } catch (e) {
-            throw e.message || e;
+            throw new Error(e.message || 'Erreur de connexion');
         }
     },
 
@@ -32,7 +32,7 @@ export const riadService = {
             if (!response.ok) throw new Error(data.error || 'Erreur lors de l\'inscription');
             return data;
         } catch (e) {
-            throw e.message || e;
+            throw new Error(e.message || 'Erreur d\'inscription');
         }
     },
 
@@ -74,144 +74,53 @@ export const riadService = {
         return rooms;
     },
 
-    async createReservation(reservationData) {
-        const { userId, roomId, start, end, amount } = reservationData;
-
-        if (hasWailsBindings()) {
-            const localId = await window.go.main.RiadService.CreateLocalReservation(userId, roomId, start, end, amount);
-
-            if (navigator.onLine) {
-                try {
-                    const response = await fetch(`${API_BASE_URL}/reservations`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        },
-                        body: JSON.stringify({
-                            user_id: userId,
-                            chambre_id: roomId,
-                            date_debut: start,
-                            date_fin: end,
-                            montant: amount
-                        })
-                    });
-
-                    if (response.ok) {
-                        const serverRes = await response.json();
-                        await window.go.main.RiadService.MarkAsSynced('reservations', localId);
-                        return { id: serverRes.id, synced: true };
-                    }
-                } catch (e) {
-                    console.warn("Offline mode: reservation pending sync", e);
-                }
-            }
-
-            return { id: localId, synced: false };
-        }
-
+    async getReservations() {
         if (navigator.onLine) {
-            const response = await fetch(`${API_BASE_URL}/reservations`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    chambre_id: roomId,
-                    date_debut: start,
-                    date_fin: end,
-                    montant: amount
-                })
-            });
-
-            if (response.ok) {
-                const serverRes = await response.json();
-                return { id: serverRes.id, synced: true };
-            }
-            throw new Error('Failed to create reservation');
-        }
-
-        throw new Error('Offline and no local sync available');
-    },
-
-    async syncAll() {
-        if (!navigator.onLine || !hasWailsBindings()) return;
-
-        const tables = ['reservations', 'rooms'];
-        for (const table of tables) {
-            const unsynced = await window.go.main.RiadService.GetUnsynced(table);
-            for (const item of unsynced) {
-                try {
-                    if (table === 'reservations') {
-                        await fetch(`${API_BASE_URL}/reservations`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`
-                            },
-                            body: JSON.stringify({
-                                user_id: item.user_id,
-                                chambre_id: item.chambre_id,
-                                date_debut: item.date_debut,
-                                date_fin: item.date_fin,
-                                montant: item.montant
-                            })
-                        });
-                    }
-                    await window.go.main.RiadService.MarkAsSynced(table, item.id);
-                } catch (e) {
-                    console.error(`Failed to sync ${item.id}`, e);
-                }
-            }
-        }
-    },
-
-    async getDashboardStats() {
-        let rooms = [];
-
-        if (hasWailsBindings()) {
-            try {
-                rooms = await window.go.main.RiadService.GetLocalRooms();
-            } catch (e) {
-                console.warn("Local stats fetch failed", e);
-            }
-        }
-
-        if (rooms.length === 0 && navigator.onLine) {
             const token = localStorage.getItem('token');
             try {
-                const response = await fetch(`${API_BASE_URL}/chambres`, {
+                const response = await fetch(`${API_BASE_URL}/reservations`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {
-                    rooms = await response.json();
+                    return await response.json();
                 }
             } catch (e) {
-                console.warn("Cloud stats fetch failed", e);
+                console.warn("Failed to fetch reservations from server", e);
             }
         }
+        return [];
+    },
 
-        let pendingSync = 0;
-        if (hasWailsBindings()) {
+    async createReservation(reservationData) {
+        const { client_id, chambre_id, date_debut, date_fin, montant } = reservationData;
+
+        if (navigator.onLine) {
+            const token = localStorage.getItem('token');
             try {
-                const unsyncedRes = await window.go.main.RiadService.GetUnsynced('reservations');
-                const unsyncedRooms = await window.go.main.RiadService.GetUnsynced('rooms');
-                pendingSync = unsyncedRes.length + unsyncedRooms.length;
+                const response = await fetch(`${API_BASE_URL}/reservations`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        user_id: client_id,
+                        chambre_id: chambre_id,
+                        date_debut: date_debut,
+                        date_fin: date_fin,
+                        montant: montant
+                    })
+                });
+
+                if (response.ok) {
+                    const serverRes = await response.json();
+                    return { id: serverRes.id, synced: true };
+                }
             } catch (e) {
-                console.warn("Failed to get unsynced count", e);
+                console.warn("Failed to create reservation", e);
             }
         }
 
-        const totalRooms = rooms.length;
-        const occupiedRooms = rooms.filter(r => r.statut === 'occupee').length;
-
-        return {
-            totalRooms,
-            occupiedRooms,
-            availableRooms: totalRooms - occupiedRooms,
-            pendingSync
-        };
-    }
+        return { synced: false };
+    },
 };

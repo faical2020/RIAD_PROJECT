@@ -16,12 +16,13 @@ const routes = [
     },
     {
         path: '/',
-        component: () => import('../views/Dashboard.vue'),
+        component: () => import('../components/DashboardLayout.vue'),
         meta: { requiresAuth: true },
         children: [
             {
                 path: '',
-                redirect: '/chambres'
+                name: 'Dashboard',
+                component: () => import('../views/Dashboard.vue')
             },
             {
                 path: 'chambres',
@@ -32,6 +33,16 @@ const routes = [
                 path: 'reservations',
                 name: 'Reservations',
                 component: () => import('../views/Reservations.vue')
+            },
+            {
+                path: 'nouvelle-reservation',
+                name: 'NouvelleReservation',
+                component: () => import('../views/NouvelleReservation.vue')
+            },
+            {
+                path: 'profil',
+                name: 'Profil',
+                component: () => import('../views/Profil.vue')
             }
         ]
     }
