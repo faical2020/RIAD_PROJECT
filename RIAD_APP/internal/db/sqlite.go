@@ -3,14 +3,32 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	_ "github.com/glebarez/go-sqlite"
 )
 
 var DB *sql.DB
 
-func InitDB(filepath string) error {
+func GetDBPath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "riad.db"
+	}
+	appDir := filepath.Join(configDir, "riad_app")
+	return filepath.Join(appDir, "riad.db")
+}
+
+func InitDB(path string) error {
 	var err error
-	DB, err = sql.Open("sqlite", filepath)
+	dir := filepath.Dir(path)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("erreur creation dossier db: %v", err)
+		}
+	}
+	DB, err = sql.Open("sqlite", path)
 	if err != nil {
 		return fmt.Errorf("erreur ouverture db: %v", err)
 	}

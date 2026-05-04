@@ -29,7 +29,7 @@ func init() {
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
 // logs any error that might occur.
 func main() {
-	if err := db.InitDB("riad.db"); err != nil {
+	if err := db.InitDB(db.GetDBPath()); err != nil {
 		log.Fatal(err)
 	}
 
