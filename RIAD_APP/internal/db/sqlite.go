@@ -93,6 +93,35 @@ func GetRooms() ([]map[string]interface{}, error) {
 	return rooms, nil
 }
 
+func GetReservations() ([]map[string]interface{}, error) {
+	rows, err := DB.Query("SELECT * FROM reservations")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []map[string]interface{}
+	cols, _ := rows.Columns()
+	for rows.Next() {
+		columns := make([]interface{}, len(cols))
+		columnPointers := make([]interface{}, len(cols))
+		for i := range columns {
+			columnPointers[i] = &columns[i]
+		}
+
+		if err := rows.Scan(columnPointers...); err != nil {
+			return nil, err
+		}
+
+		m := make(map[string]interface{})
+		for i, colName := range cols {
+			m[colName] = columns[i]
+		}
+		results = append(results, m)
+	}
+	return results, nil
+}
+
 func SaveRoom(id string, num int, roomType string, price float64, desc, equip, status string) error {
 	_, err := DB.Exec("INSERT OR REPLACE INTO rooms (id, numero, type, prix, description, equipements, statut, synced) VALUES (?, ?, ?, ?, ?, ?, ?, 0)", id, num, roomType, price, desc, equip, status)
 	return err

@@ -1,10 +1,12 @@
 package handlers
 
 import (
-    "net/http"
-    "RIAD_SERVER/internal/db"
-    "RIAD_SERVER/internal/logic"
-    "github.com/gin-gonic/gin"
+	"net/http"
+	"RIAD_SERVER/internal/db"
+	"RIAD_SERVER/internal/logic"
+	"RIAD_SERVER/internal/sync"
+	pb "github.com/anomalyco/riad_project/proto/sync"
+	"github.com/gin-gonic/gin"
 )
 
 func GetReservations(c *gin.Context) {
@@ -31,8 +33,19 @@ func CreateReservation(c *gin.Context) {
         return
     }
 
-    db.GetDB().Create(&res)
-    c.JSON(http.StatusCreated, res)
+	db.GetDB().Create(&res)
+	
+	sync.GlobalBus.Publish("RESERVATION_UPDATED", res.ID, &pb.Reservation{
+		Id:         res.ID,
+		UserId:     res.UserID,
+		RoomId:     res.ChambreID,
+		StartDate:  res.DateDebut,
+		EndDate:    res.DateFin,
+		Amount:     res.Montant,
+		Status:     res.Statut,
+	})
+
+	c.JSON(http.StatusCreated, res)
 }
 
 func Checkin(c *gin.Context) {
@@ -51,8 +64,28 @@ func Checkin(c *gin.Context) {
         return
     }
 
-    db.GetDB().Save(&res).Save(&chambre)
-    c.JSON(http.StatusOK, res)
+	db.GetDB().Save(&res).Save(&chambre)
+	
+	sync.GlobalBus.Publish("RESERVATION_UPDATED", res.ID, &pb.Reservation{
+		Id:         res.ID,
+		UserId:     res.UserID,
+		RoomId:     res.ChambreID,
+		StartDate:  res.DateDebut,
+		EndDate:    res.DateFin,
+		Amount:     res.Montant,
+		Status:     res.Statut,
+	})
+	sync.GlobalBus.Publish("ROOM_UPDATED", chambre.ID, &pb.Room{
+		Id:          chambre.ID,
+		Number:      int32(chambre.Numero),
+		Type:        chambre.Type,
+		Price:       chambre.Prix,
+		Description: chambre.Description,
+		Equipments:  chambre.Equipements,
+		Status:      chambre.Statut,
+	})
+
+	c.JSON(http.StatusOK, res)
 }
 
 func Checkout(c *gin.Context) {
@@ -71,6 +104,26 @@ func Checkout(c *gin.Context) {
         return
     }
 
-    db.GetDB().Save(&res).Save(&chambre)
-    c.JSON(http.StatusOK, res)
+	db.GetDB().Save(&res).Save(&chambre)
+	
+	sync.GlobalBus.Publish("RESERVATION_UPDATED", res.ID, &pb.Reservation{
+		Id:         res.ID,
+		UserId:     res.UserID,
+		RoomId:     res.ChambreID,
+		StartDate:  res.DateDebut,
+		EndDate:    res.DateFin,
+		Amount:     res.Montant,
+		Status:     res.Statut,
+	})
+	sync.GlobalBus.Publish("ROOM_UPDATED", chambre.ID, &pb.Room{
+		Id:          chambre.ID,
+		Number:      int32(chambre.Numero),
+		Type:        chambre.Type,
+		Price:       chambre.Prix,
+		Description: chambre.Description,
+		Equipments:  chambre.Equipements,
+		Status:      chambre.Statut,
+	})
+
+	c.JSON(http.StatusOK, res)
 }

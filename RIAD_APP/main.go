@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	_ "embed"
 	"log"
@@ -33,17 +34,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Create a new Wails application by providing the necessary options.
+	riadService := NewRiadService()
+	// Create a context for the background sync loop
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	riadService.SetContext(ctx)
+	riadService.StartSyncLoop()
 
-	// Variables 'Name' and 'Description' are for application metadata.
-	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
-	// 'Bind' is a list of Go struct instances. The frontend has access to the methods of these instances.
-	// 'Mac' options tailor the application when running an macOS.
+	// Create a new Wails application by providing the necessary options.
 	app := application.New(application.Options{
 		Name:        "RIAD_APP",
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
-			application.NewService(NewRiadService()),
+			application.NewService(riadService),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -52,6 +55,8 @@ func main() {
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
+
+	riadService.SetApp(app)
 
 	// Create a new window with the necessary options.
 	// 'Title' is the title of the window.

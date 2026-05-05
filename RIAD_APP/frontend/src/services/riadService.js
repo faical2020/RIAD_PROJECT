@@ -1,6 +1,5 @@
 const API_BASE_URL = 'http://localhost:8081/api/v1';
-
-const hasWailsBindings = () => typeof window !== 'undefined' && window.go && window.go.main && window.go.main.RiadService;
+import { GetLocalRooms, UpdateLocalRoom, CreateLocalReservation, GetLocalReservations } from '../../bindings/RIAD_APP/riadservice';
 
 export const riadService = {
     async login(credentials) {
@@ -20,7 +19,6 @@ export const riadService = {
             throw new Error(e.message || 'Erreur de connexion');
         }
     },
-
     async register(userData) {
         try {
             const response = await fetch(`${API_BASE_URL}/auth/register`, {
@@ -35,13 +33,13 @@ export const riadService = {
             throw new Error(e.message || 'Erreur d\'inscription');
         }
     },
-
     async getRooms() {
         let rooms = [];
 
-        if (hasWailsBindings()) {
+        if (window.go || window.Wails || window._wails) {
             try {
-                rooms = await window.go.main.RiadService.GetLocalRooms();
+                const localRooms = await GetLocalRooms();
+                rooms = JSON.parse(JSON.stringify(localRooms || []));
             } catch (e) {
                 console.warn("Local rooms fetch failed", e);
             }
@@ -56,15 +54,19 @@ export const riadService = {
                 if (response.ok) {
                     const serverRooms = await response.json();
 
-                    if (hasWailsBindings()) {
+                    if (window.go || window.Wails || window._wails) {
                         for (const room of serverRooms) {
-                            await window.go.main.RiadService.UpdateLocalRoom(
-                                room.id, room.numero, room.type, room.prix, room.description, room.equipements, room.statut
-                            );
+                            try {
+                                await UpdateLocalRoom(
+                                    room.id, room.numero, room.type, room.prix, room.description, room.equipements, room.statut
+                                );
+                            } catch (e) {
+                                console.warn(`Failed to update local room ${room.id}`, e);
+                            }
                         }
                     }
 
-                    rooms = serverRooms;
+                    rooms = JSON.parse(JSON.stringify(serverRooms));
                 }
             } catch (e) {
                 console.warn("Cloud sync failed, using local data", e);
@@ -73,8 +75,17 @@ export const riadService = {
 
         return rooms;
     },
-
     async getReservations() {
+        let reservations = [];
+
+        if (window.go || window.Wails || window._wails) {
+            try {
+                reservations = await GetLocalReservations();
+            } catch (e) {
+                console.warn("Local reservations fetch failed", e);
+            }
+        }
+
         if (navigator.onLine) {
             const token = localStorage.getItem('token');
             try {
@@ -82,15 +93,19 @@ export const riadService = {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {
-                    return await response.json();
+                    const serverRes = await response.json();
+                    const allRes = [...reservations, ...serverRes];
+                    const uniqueRes = Array.from(new Map(allRes.map(item => [item.id, item])).values());
+                    return uniqueRes;
+                } else if (response.status === 403) {
+                    console.warn("Server: Access forbidden to reservations list. Showing local data only.");
                 }
             } catch (e) {
                 console.warn("Failed to fetch reservations from server", e);
             }
         }
-        return [];
+        return reservations;
     },
-
     async createReservation(reservationData) {
         const { client_id, chambre_id, date_debut, date_fin, montant } = reservationData;
 
@@ -117,10 +132,20 @@ export const riadService = {
                     return { id: serverRes.id, synced: true };
                 }
             } catch (e) {
-                console.warn("Failed to create reservation", e);
+                console.warn("Server unavailable, saving locally...", e);
             }
         }
 
-        return { synced: false };
+        if (window.go || window.Wails || window._wails) {
+            try {
+                const localId = await CreateLocalReservation(client_id, chambre_id, date_debut, date_fin, montant);
+                return { id: localId, synced: false };
+            } catch (e) {
+                console.error("Failed to save reservation locally", e);
+                throw new Error("Impossible d'enregistrer la réservation");
+            }
+        } else {
+            throw new Error("Aucune connexion serveur et stockage local indisponible (Mode Web)");
+        }
     },
 };

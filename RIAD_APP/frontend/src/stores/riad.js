@@ -19,9 +19,14 @@ export const useRiadStore = defineStore('riad', {
 
     actions: {
         async fetchChambres() {
+            console.log('[Store] fetchChambres called');
             this.loading = true
             try {
-                this.chambres = await riadService.getRooms()
+                const rooms = await riadService.getRooms()
+                console.log(`[Store] fetchChambres received ${rooms.length} rooms`, rooms);
+                this.chambres = rooms
+            } catch (e) {
+                console.error('[Store] fetchChambres error:', e);
             } finally {
                 this.loading = false
             }
@@ -37,6 +42,10 @@ export const useRiadStore = defineStore('riad', {
             } catch (e) {
                 console.error('Failed to fetch reservations', e)
             }
+        },
+
+        async createReservation(reservationData) {
+            return await riadService.createReservation(reservationData)
         },
 
         async fetchStats() {

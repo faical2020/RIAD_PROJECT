@@ -6,6 +6,10 @@
 // @ts-ignore: Unused imports
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as application$0 from "../github.com/wailsapp/wails/v3/pkg/application/models.js";
+
 /**
  * @param {string} userID
  * @param {string} roomID
@@ -16,6 +20,15 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
  */
 export function CreateLocalReservation(userID, roomID, start, end, amount) {
     return $Call.ByID(306295986, userID, roomID, start, end, amount);
+}
+
+/**
+ * @returns {$CancellablePromise<{ [_ in string]?: any }[]>}
+ */
+export function GetLocalReservations() {
+    return $Call.ByID(562736597).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType1($result);
+    }));
 }
 
 /**
@@ -47,10 +60,33 @@ export function MarkAsSynced(table, id) {
 }
 
 /**
+ * @param {application$0.App | null} app
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetApp(app) {
+    return $Call.ByID(2164967250, app);
+}
+
+/**
  * @returns {$CancellablePromise<void>}
  */
 export function SetContext() {
     return $Call.ByID(839953470);
+}
+
+/**
+ * @param {string} token
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetToken(token) {
+    return $Call.ByID(2228934380, token);
+}
+
+/**
+ * @returns {$CancellablePromise<void>}
+ */
+export function StartSyncLoop() {
+    return $Call.ByID(2513796170);
 }
 
 /**
