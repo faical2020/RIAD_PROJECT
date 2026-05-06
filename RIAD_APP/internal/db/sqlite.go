@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	_ "github.com/glebarez/go-sqlite"
 )
@@ -50,7 +51,10 @@ func InitDB(path string) error {
 		description TEXT,
 		equipements TEXT,
 		statut TEXT,
-		synced BOOLEAN DEFAULT 1
+		cleaning_status TEXT DEFAULT 'propre',
+		synced BOOLEAN DEFAULT 1,
+		created_at INTEGER,
+		updated_at INTEGER
 	);
 	CREATE TABLE IF NOT EXISTS reservations (
 		id TEXT PRIMARY KEY,
@@ -60,7 +64,9 @@ func InitDB(path string) error {
 		date_fin TEXT,
 		montant REAL,
 		statut TEXT,
-		synced BOOLEAN DEFAULT 0
+		synced BOOLEAN DEFAULT 0,
+		created_at INTEGER,
+		updated_at INTEGER
 	);
 	`
 	_, err = DB.Exec(schema)
@@ -79,15 +85,16 @@ func GetRooms() ([]map[string]interface{}, error) {
 
 	var rooms []map[string]interface{}
 	for rows.Next() {
-		var id, roomType, desc, equip, status string
+		var id, roomType, desc, equip, status, cleaningStatus string
 		var num int
 		var price float64
 		var synced bool
-		if err := rows.Scan(&id, &num, &roomType, &price, &desc, &equip, &status, &synced); err != nil {
+		var createdAt, updatedAt int64
+		if err := rows.Scan(&id, &num, &roomType, &price, &desc, &equip, &status, &cleaningStatus, &synced, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 		rooms = append(rooms, map[string]interface{}{
-			"id": id, "numero": num, "type": roomType, "prix": price, "description": desc, "equipements": equip, "statut": status, "synced": synced,
+			"id": id, "numero": num, "type": roomType, "prix": price, "description": desc, "equipements": equip, "statut": status, "cleaning_status": cleaningStatus, "synced": synced, "created_at": createdAt, "updated_at": updatedAt,
 		})
 	}
 	return rooms, nil
@@ -122,13 +129,15 @@ func GetReservations() ([]map[string]interface{}, error) {
 	return results, nil
 }
 
-func SaveRoom(id string, num int, roomType string, price float64, desc, equip, status string) error {
-	_, err := DB.Exec("INSERT OR REPLACE INTO rooms (id, numero, type, prix, description, equipements, statut, synced) VALUES (?, ?, ?, ?, ?, ?, ?, 0)", id, num, roomType, price, desc, equip, status)
+func SaveRoom(id string, num int, roomType string, price float64, desc, equip, status, cleaningStatus string) error {
+	now := time.Now().Unix()
+	_, err := DB.Exec("INSERT OR REPLACE INTO rooms (id, numero, type, prix, description, equipements, statut, cleaning_status, synced, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", id, num, roomType, price, desc, equip, status, cleaningStatus, 0, now, now)
 	return err
 }
 
 func SaveReservation(id, userId, roomId, start, end string, amount float64, status string) error {
-	_, err := DB.Exec("INSERT OR REPLACE INTO reservations (id, user_id, chambre_id, date_debut, date_fin, montant, statut, synced) VALUES (?, ?, ?, ?, ?, ?, ?, 0)", id, userId, roomId, start, end, amount, status)
+	now := time.Now().Unix()
+	_, err := DB.Exec("INSERT OR REPLACE INTO reservations (id, user_id, chambre_id, date_debut, date_fin, montant, statut, synced, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", id, userId, roomId, start, end, amount, status, 0, now, now)
 	return err
 }
 

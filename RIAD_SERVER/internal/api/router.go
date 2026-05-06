@@ -35,8 +35,10 @@ func SetupRouter() *gin.Engine {
 	protected := r.Group("/api/v1")
 	protected.Use(middleware.AuthMiddleware())
 	{
+		protected.GET("/sync", handlers.SyncHandler)
 		protected.GET("/chambres", handlers.GetChambres)
 		protected.POST("/chambres", middleware.RoleMiddleware("manager"), handlers.CreateChambre)
+		protected.PATCH("/chambres/:id/cleaning", handlers.UpdateCleaningStatus)
 		protected.GET("/reservations", middleware.RoleMiddleware("manager", "receptionniste"), handlers.GetReservations)
 		protected.POST("/reservations", handlers.CreateReservation)
 		protected.PATCH("/reservations/:id/checkin", middleware.RoleMiddleware("manager", "receptionniste"), handlers.Checkin)

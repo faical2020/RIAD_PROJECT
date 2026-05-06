@@ -1,3 +1,5 @@
+import { localCacheService } from '../localCacheService';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
 
 export const webServiceProvider = {
@@ -39,11 +41,15 @@ export const webServiceProvider = {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
-                return await response.json();
+                const data = await response.json();
+                await localCacheService.setAll('rooms', data);
+                return data;
             }
             throw new Error('Failed to fetch rooms');
         } catch (e) {
-            console.error("Web: Cloud fetch failed", e);
+            console.warn("Web: Server unavailable, loading rooms from cache...", e);
+            const cached = await localCacheService.getAll('rooms');
+            if (cached && cached.length > 0) return cached;
             throw e;
         }
     },
@@ -54,14 +60,15 @@ export const webServiceProvider = {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
-                return await response.json();
-            } else if (response.status === 403) {
-                console.warn("Server: Access forbidden to reservations list.");
-                return [];
+                const data = await response.json();
+                await localCacheService.setAll('reservations', data);
+                return data;
             }
             throw new Error('Failed to fetch reservations');
         } catch (e) {
-            console.error("Web: Cloud fetch failed", e);
+            console.warn("Web: Server unavailable, loading reservations from cache...", e);
+            const cached = await localCacheService.getAll('reservations');
+            if (cached && cached.length > 0) return cached;
             throw e;
         }
     },
@@ -90,11 +97,88 @@ export const webServiceProvider = {
             }
             throw new Error('Server rejected reservation');
         } catch (e) {
-            throw new Error("Aucune connexion serveur et stockage local indisponible (Mode Web)");
+            console.warn("Web: Server unavailable, saving as draft in IndexedDB...", e);
+            const draftId = await localCacheService.saveDraft({
+                user_id: client_id,
+                chambre_id: chambre_id,
+                date_debut: date_debut,
+                date_fin: date_fin,
+                montant: montant,
+                status: 'draft'
+            });
+            return { id: draftId, synced: false };
+        }
+    },
+    async updateReservation(reservationData) {
+        const { id, client_id, chambre_id, date_debut, date_fin, montant, statut } = reservationData;
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch(`${API_BASE_URL}/reservations/${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    user_id: client_id,
+                    chambre_id: chambre_id,
+                    date_debut: date_debut,
+                    date_fin: date_fin,
+                    montant: montant,
+                    statut: statut
+                })
+            });
+
+            if (response.ok) {
+                const updatedRes = await response.json();
+                await localCacheService.setAll('reservations', await localCacheService.getAll('reservations')); // Simplified cache update
+                return { id: updatedRes.id, synced: true };
+            }
+            throw new Error('Server rejected update');
+        } catch (e) {
+            console.warn("Web: Server unavailable, updating cache only...", e);
+            // Update local cache as draft/unsynced
+            const resList = await localCacheService.getAll('reservations');
+            const idx = resList.findIndex(r => r.id === id);
+            if (idx !== -1) {
+                resList[idx] = { ...resList[idx], ...reservationData, synced: false };
+                await localCacheService.setAll('reservations', resList);
+            }
+            return { id, synced: false };
+        }
+    },
+    async updateCleaningStatus(roomId, status) {
+        const token = localStorage.getItem('token');
+        try {
+            const response = await fetch(`${API_BASE_URL}/chambres/${roomId}/cleaning`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ cleaning_status: status })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                // Refresh cache
+                const rooms = await this.getRooms();
+                await localCacheService.setAll('rooms', rooms);
+                return data;
+            }
+            throw new Error('Server rejected cleaning status update');
+        } catch (e) {
+            console.warn("Web: Server unavailable, updating cache only...", e);
+            const rooms = await localCacheService.getAll('rooms');
+            const idx = rooms.findIndex(r => r.id === roomId);
+            if (idx !== -1) {
+                rooms[idx].cleaning_status = status;
+                await localCacheService.setAll('rooms', rooms);
+            }
+            return { id: roomId, cleaning_status: status };
         }
     },
     async setToken(token) {
-        // No-op in web mode: token is sent via Authorization headers in each request
         return Promise.resolve();
     }
 }

@@ -90,13 +90,15 @@ const router = useRouter()
 const route = useRoute()
 const sidebarOpen = ref(window.innerWidth >= 1024)
 
-const allNavItems = [
-  { to: '/', name: 'Dashboard', icon: '🏠', label: 'Tableau de bord', roles: null },
-  { to: '/chambres', name: 'Chambres', icon: '🛏️', label: 'Chambres', roles: null },
-  { to: '/reservations', name: 'Reservations', icon: '📋', label: 'Réservations', roles: ['manager', 'receptionniste'] },
-  { to: '/nouvelle-reservation', name: 'NouvelleReservation', icon: '➕', label: 'Réserver', roles: null },
-  { to: '/profil', name: 'Profil', icon: '👤', label: 'Mon profil', roles: null },
-]
+  const allNavItems = [
+    { to: '/', name: 'Dashboard', icon: '🏠', label: 'Tableau de bord', roles: null },
+    { to: '/calendrier', name: 'Calendar', icon: '📅', label: 'Planning', roles: ['manager', 'receptionniste'] },
+    { to: '/cleaning', name: 'Cleaning', icon: '🧹', label: 'Ménage', roles: ['manager', 'receptionniste'] },
+    { to: '/chambres', name: 'Chambres', icon: '🛏️', label: 'Chambres', roles: null },
+    { to: '/reservations', name: 'Reservations', icon: '📋', label: 'Réservations', roles: ['manager', 'receptionniste'] },
+    { to: '/nouvelle-reservation', name: 'NouvelleReservation', icon: '➕', label: 'Réserver', roles: null },
+    { to: '/profil', name: 'Profil', icon: '👤', label: 'Mon profil', roles: null },
+  ]
 
 const navItems = computed(() =>
   allNavItems.filter(i => !i.roles || i.roles.includes(authStore.role))

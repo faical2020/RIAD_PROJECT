@@ -19,15 +19,15 @@ const form = reactive({
 async function submitReservation() {
   message.value = ''
   isSubmitting.value = true
-  try {
-    const result = await riad.createReservation(form)
-    message.value = result.synced
-      ? '✅ Réservation confirmée et synchronisée !'
-      : '⏳ Enregistrée localement (en attente de synchronisation).'
-    if (result.synced) {
-      Object.assign(form, { client_id: auth.user?.id || '', chambre_id: '', date_debut: '', date_fin: '', montant: 0 })
-    }
-  } catch (e) {
+    try {
+        const result = await riad.createReservation(form)
+        message.value = result.synced
+          ? '✅ Réservation confirmée et synchronisée !'
+          : '⏳ Enregistrée localement (en attente de synchronisation).'
+        
+        // Reset form regardless of sync status
+        Object.assign(form, { client_id: auth.user?.id || '', chambre_id: '', date_debut: '', date_fin: '', montant: 0 })
+    } catch (e) {
     message.value = '❌ Erreur: ' + e
   } finally {
     isSubmitting.value = false

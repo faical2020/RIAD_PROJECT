@@ -91,6 +91,29 @@ export function StartSyncLoop() {
 
 /**
  * @param {string} id
+ * @param {string} status
+ * @returns {$CancellablePromise<void>}
+ */
+export function UpdateCleaningStatus(id, status) {
+    return $Call.ByID(1276565313, id, status);
+}
+
+/**
+ * @param {string} id
+ * @param {string} userId
+ * @param {string} roomId
+ * @param {string} start
+ * @param {string} end
+ * @param {number} amount
+ * @param {string} status
+ * @returns {$CancellablePromise<void>}
+ */
+export function UpdateLocalReservation(id, userId, roomId, start, end, amount, status) {
+    return $Call.ByID(3344858667, id, userId, roomId, start, end, amount, status);
+}
+
+/**
+ * @param {string} id
  * @param {number} num
  * @param {string} roomType
  * @param {number} price

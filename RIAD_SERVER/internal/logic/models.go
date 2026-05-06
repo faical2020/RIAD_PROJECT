@@ -1,8 +1,9 @@
 package logic
 
 import (
-    "github.com/google/uuid"
-    "gorm.io/gorm"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+	"time"
 )
 
 type User struct {
@@ -23,37 +24,58 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 }
 
 type Chambre struct {
-    ID          string `json:"id" gorm:"type:uuid;primaryKey"`
-    Numero      int    `json:"numero"`
-    Type        string `json:"type" gorm:"type:varchar(50)"`
-    Prix        float64 `json:"prix"`
-    Statut      string `json:"statut" gorm:"type:varchar(50);default:'libre'"`
-    Description string `json:"description"`
-    Equipements string `json:"equipements"`
+	ID          string  `json:"id" gorm:"type:uuid;primaryKey"`
+	Numero      int     `json:"numero"`
+	Type        string  `json:"type" gorm:"type:varchar(50)"`
+	Prix        float64 `json:"prix"`
+	Statut      string  `json:"statut" gorm:"type:varchar(50);default:'libre'"`
+	CleaningStatus string `json:"cleaning_status" gorm:"type:varchar(50);default:'propre'"`
+	Description string  `json:"description"`
+	Equipements string  `json:"equipements"`
+	CreatedAt   int64   `json:"created_at"`
+	UpdatedAt   int64   `json:"updated_at"`
 }
 
 func (c *Chambre) BeforeCreate(tx *gorm.DB) error {
-    if c.ID == "" {
-        c.ID = uuid.New().String()
-    }
-    return nil
+	if c.ID == "" {
+		c.ID = uuid.New().String()
+	}
+	now := time.Now().Unix()
+	c.CreatedAt = now
+	c.UpdatedAt = now
+	return nil
+}
+
+func (c *Chambre) BeforeUpdate(tx *gorm.DB) error {
+	c.UpdatedAt = time.Now().Unix()
+	return nil
 }
 
 type Reservation struct {
-    ID         string  `json:"id" gorm:"type:uuid;primaryKey"`
-    UserID     string  `json:"user_id" gorm:"type:uuid"`
-    ChambreID  string  `json:"chambre_id" gorm:"type:uuid"`
-    DateDebut  string  `json:"date_debut"`
-    DateFin    string  `json:"date_fin"`
-    Statut     string  `json:"statut" gorm:"type:varchar(50);default:'confirmée'"`
-    Montant    float64 `json:"montant"`
+	ID         string  `json:"id" gorm:"type:uuid;primaryKey"`
+	UserID     string  `json:"user_id" gorm:"type:uuid"`
+	ChambreID  string  `json:"chambre_id" gorm:"type:uuid"`
+	DateDebut  string  `json:"date_debut"`
+	DateFin    string  `json:"date_fin"`
+	Statut     string  `json:"statut" gorm:"type:varchar(50);default:'confirmée'"`
+	Montant    float64 `json:"montant"`
+	CreatedAt   int64   `json:"created_at"`
+	UpdatedAt   int64   `json:"updated_at"`
 }
 
 func (r *Reservation) BeforeCreate(tx *gorm.DB) error {
-    if r.ID == "" {
-        r.ID = uuid.New().String()
-    }
-    return nil
+	if r.ID == "" {
+		r.ID = uuid.New().String()
+	}
+	now := time.Now().Unix()
+	r.CreatedAt = now
+	r.UpdatedAt = now
+	return nil
+}
+
+func (r *Reservation) BeforeUpdate(tx *gorm.DB) error {
+	r.UpdatedAt = time.Now().Unix()
+	return nil
 }
 
 type Tache struct {

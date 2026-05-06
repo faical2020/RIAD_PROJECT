@@ -3,13 +3,14 @@ package logic
 import "errors"
 
 type Room struct {
-	ID          string  `json:"id"`
-	Number      int     `json:"numero"`
-	Type        string  `json:"type"`
-	Price       float64 `json:"prix"`
-	Description string  `json:"description"`
-	Equipments  string  `json:"equipements"`
-	Status      string  `json:"statut"`
+	ID             string  `json:"id"`
+	Number         int     `json:"numero"`
+	Type           string  `json:"type"`
+	Price          float64 `json:"prix"`
+	Description    string  `json:"description"`
+	Equipments     string  `json:"equipements"`
+	Status         string  `json:"statut"`
+	CleaningStatus string  `json:"cleaning_status"`
 }
 
 func ValidateRoom(room Room) error {

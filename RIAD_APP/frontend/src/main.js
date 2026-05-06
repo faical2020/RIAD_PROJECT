@@ -4,6 +4,7 @@ import router from './router'
 import App from './App.vue'
 import './style.css'
 import { riadService } from './services/serviceBridge'
+import { webSyncManager } from './sync/webSyncManager'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -23,6 +24,12 @@ const syncTokenWithGo = async () => {
 };
 
 syncTokenWithGo();
+
+// Start Web-specific background sync for drafts
+const target = import.meta.env.VITE_APP_TARGET;
+if (target === 'web') {
+    webSyncManager.startAutoSync();
+}
 
 app.use(router)
 app.mount('#app')

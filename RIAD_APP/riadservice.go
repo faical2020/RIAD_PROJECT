@@ -32,10 +32,11 @@ func init() {
 }
 
 type RiadService struct {
-	ctx        context.Context
-	token      string
-	apiBaseURL string
-	app        *application.App // Reference to the Wails app for emitting events
+	ctx                context.Context
+	token              string
+	apiBaseURL         string
+	app                *application.App // Reference to the Wails app for emitting events
+	lastSyncTimestamp  int64
 }
 
 func NewRiadService() *RiadService {
@@ -125,7 +126,8 @@ func (s *RiadService) handleSyncEvent(event *pb.SyncEvent) {
 	case pb.SyncEvent_ROOM_UPDATED:
 		if room := event.GetRoom(); room != nil {
 			log.Printf("Updating local room %s from gRPC", room.Id)
-			db.SaveRoom(room.Id, int(room.Number), room.Type, room.Price, room.Description, room.Equipments, room.Status)
+			// Note: CleaningStatus is not yet in the proto Room message, using default 'propre'
+			db.SaveRoom(room.Id, int(room.Number), room.Type, room.Price, room.Description, room.Equipments, room.Status, "propre")
 			if s.app != nil {
 				log.Printf("Emitting Wails event sync:rooms for room %s", room.Id)
 				s.app.Event.Emit("sync:rooms", "updated")
@@ -225,7 +227,7 @@ func (s *RiadService) UpdateLocalRoom(id string, num int, roomType string, price
 		return err
 	}
 
-	err := db.SaveRoom(id, num, roomType, price, desc, equip, status)
+	err := db.SaveRoom(id, num, roomType, price, desc, equip, status, "propre")
 	if err != nil {
 		if debugLog != nil {
 			debugLog.Printf("db.SaveRoom failed for room %s: %v\n", id, err)
@@ -235,6 +237,72 @@ func (s *RiadService) UpdateLocalRoom(id string, num int, roomType string, price
 	if debugLog != nil {
 		debugLog.Printf("Room %s saved successfully to local DB\n", id)
 	}
+	return nil
+}
+
+func (s *RiadService) UpdateLocalReservation(id string, userId, roomId, start, end string, amount float64, status string) error {
+	if debugLog != nil {
+		debugLog.Printf("UpdateLocalReservation called: ID=%s\n", id)
+	}
+	err := db.SaveReservation(id, userId, roomId, start, end, amount, status)
+	if err != nil {
+		if debugLog != nil {
+			debugLog.Printf("db.SaveReservation failed for reservation %s: %v\n", id, err)
+		}
+		return err
+	}
+	if debugLog != nil {
+		debugLog.Printf("Reservation %s updated successfully in local DB\n", id)
+	}
+	return nil
+}
+
+func (s *RiadService) UpdateCleaningStatus(id, status string) error {
+	if debugLog != nil {
+		debugLog.Printf("UpdateCleaningStatus called: ID=%s, Status=%s\n", id, status)
+	}
+	
+	// Update local DB
+	// We need to fetch the room first to keep other fields
+	rawRooms, err := db.GetRooms()
+	if err != nil {
+		return err
+	}
+	
+	var room map[string]interface{}
+	for _, r := range rawRooms {
+		if r["id"] == id {
+			room = r
+			break
+		}
+	}
+	
+	if room == nil {
+		return fmt.Errorf("room not found")
+	}
+	
+	// In SQLite we use SaveRoom, but SaveRoom replaces the whole row.
+	// For simplicity and consistency with our current SQLite implementation:
+	err = db.SaveRoom(
+		id, 
+		int(room["numero"].(int)), 
+		room["type"].(string), 
+		room["prix"].(float64), 
+		room["description"].(string), 
+		room["equipements"].(string), 
+		room["statut"].(string), 
+		status,
+	)
+	
+	if err != nil {
+		return err
+	}
+	
+	// Trigger sync event to frontend
+	if s.app != nil {
+		s.app.Event.Emit("sync:rooms", "updated")
+	}
+	
 	return nil
 }
 
@@ -277,16 +345,21 @@ func (s *RiadService) performSync() {
 		return
 	}
 	if debugLog != nil {
-		debugLog.Println("Running background sync...")
+		debugLog.Println("Running optimized background sync...")
 	}
-	s.pullRooms()
-	s.pullReservations()
+
+	// 1. Pull updated data from server using the /sync endpoint
+	s.pullUpdates()
+
+	// 2. Push unsynced local data to server
 	s.syncReservations()
 }
 
-func (s *RiadService) pullRooms() {
+func (s *RiadService) pullUpdates() {
 	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", s.apiBaseURL+"/chambres", nil)
+	url := fmt.Sprintf("%s/sync?since=%d", s.apiBaseURL, s.lastSyncTimestamp)
+	
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return
 	}
@@ -295,64 +368,47 @@ func (s *RiadService) pullRooms() {
 	resp, err := client.Do(req)
 	if err != nil {
 		if debugLog != nil {
-			debugLog.Printf("Error pulling rooms: %v\n", err)
+			debugLog.Printf("Error pulling updates: %v\n", err)
 		}
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		var rooms []map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&rooms); err != nil {
+		var syncData struct {
+			Chambres     []map[string]interface{} `json:"chambres"`
+			Reservations []map[string]interface{} `json:"reservations"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&syncData); err != nil {
+			if debugLog != nil {
+				debugLog.Printf("Error decoding sync data: %v\n", err)
+			}
 			return
 		}
 
-		for _, r := range rooms {
-			// Extract values safely
+		// Update local rooms
+		for _, r := range syncData.Chambres {
 			id, _ := r["id"].(string)
-			num, _ := r["numero"].(float64) // JSON numbers are float64
+			num, _ := r["numero"].(float64)
 			roomType, _ := r["type"].(string)
 			price, _ := r["prix"].(float64)
 			desc, _ := r["description"].(string)
 			equip, _ := r["equipements"].(string)
 			status, _ := r["statut"].(string)
+			cleaningStatus, _ := r["cleaning_status"].(string)
+			if cleaningStatus == "" {
+				cleaningStatus = "propre"
+			}
 
-			if err := db.SaveRoom(id, int(num), roomType, price, desc, equip, status); err != nil {
+			if err := db.SaveRoom(id, int(num), roomType, price, desc, equip, status, cleaningStatus); err != nil {
 				if debugLog != nil {
 					debugLog.Printf("Error saving pulled room %s: %v\n", id, err)
 				}
 			}
 		}
-		if debugLog != nil {
-			debugLog.Printf("Successfully pulled %d rooms\n", len(rooms))
-		}
-	}
-}
 
-func (s *RiadService) pullReservations() {
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", s.apiBaseURL+"/reservations", nil)
-	if err != nil {
-		return
-	}
-	req.Header.Set("Authorization", "Bearer "+s.token)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		if debugLog != nil {
-			debugLog.Printf("Error pulling reservations: %v\n", err)
-		}
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		var ress []map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&ress); err != nil {
-			return
-		}
-
-		for _, r := range ress {
+		// Update local reservations
+		for _, r := range syncData.Reservations {
 			id, _ := r["id"].(string)
 			uId, _ := r["user_id"].(string)
 			rId, _ := r["chambre_id"].(string)
@@ -366,11 +422,12 @@ func (s *RiadService) pullReservations() {
 					debugLog.Printf("Error saving pulled reservation %s: %v\n", id, err)
 				}
 			}
-			// Mark as synced since it came from server
 			db.MarkSynced("reservations", id)
 		}
+
+		s.lastSyncTimestamp = time.Now().Unix()
 		if debugLog != nil {
-			debugLog.Printf("Successfully pulled %d reservations\n", len(ress))
+			debugLog.Printf("Successfully synced %d rooms and %d reservations from server\n", len(syncData.Chambres), len(syncData.Reservations))
 		}
 	}
 }

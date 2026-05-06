@@ -13,6 +13,7 @@ message Room {
     string description = 5;
     string equipments = 6;
     string status = 7;
+    string cleaning_status = 8;
 }
 
 // Representation of a Reservation update

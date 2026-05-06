@@ -15,6 +15,15 @@ export const useRiadStore = defineStore('riad', {
         availableRooms: (state) => state.chambres.filter(r => r.statut === 'libre'),
         occupiedRooms: (state) => state.chambres.filter(r => r.statut === 'occupee' || r.statut === 'occupe'),
         getRoomById: (state) => (id) => state.chambres.find(r => r.id === id),
+        
+        // Helper for Calendar
+        reservationsForRoomAndDate: (state) => (roomId, dateStr) => {
+            return state.reservations.find(res => 
+                res.chambre_id === roomId && 
+                dateStr >= res.date_debut && 
+                dateStr <= res.date_fin
+            );
+        },
     },
 
     actions: {
@@ -45,11 +54,35 @@ export const useRiadStore = defineStore('riad', {
         },
 
         async createReservation(reservationData) {
-            return await riadService.createReservation(reservationData)
+            try {
+                const result = await riadService.createReservation(reservationData)
+                await this.fetchReservations()
+                return result
+            } catch (e) {
+                console.error('[Store] createReservation error:', e);
+                throw e;
+            }
         },
 
-        async fetchStats() {
-            // Stats sont calculées via les getters
+        async updateReservation(reservationData) {
+            try {
+                const result = await riadService.updateReservation(reservationData)
+                await this.fetchReservations()
+                return result
+            } catch (e) {
+                console.error('[Store] updateReservation error:', e);
+                throw e;
+            }
+        },
+
+        async updateCleaningStatus(roomId, status) {
+            try {
+                await riadService.updateCleaningStatus(roomId, status)
+                await this.fetchChambres()
+            } catch (e) {
+                console.error('[Store] updateCleaningStatus error:', e);
+                throw e;
+            }
         },
     },
 })
