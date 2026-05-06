@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { riadService } from '../services/riadService'
+import { riadService } from '../services/serviceBridge'
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({

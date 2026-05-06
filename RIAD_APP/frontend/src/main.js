@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 import router from './router'
 import App from './App.vue'
 import './style.css'
-import { SetToken } from '../bindings/RIAD_APP/riadservice'
+import { riadService } from './services/serviceBridge'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -14,8 +14,8 @@ const syncTokenWithGo = async () => {
     const token = localStorage.getItem('token');
     if (token) {
         try {
-            await SetToken(token);
-            console.log(`[Sync] Token synced successfully with Go service`);
+            await riadService.setToken(token);
+            console.log(`[Sync] Token synced successfully with service`);
         } catch (e) {
             console.error(`[Sync] Failed to sync token:`, e);
         }

@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { riadService } from '../services/riadService'
+import { riadService } from '../services/serviceBridge'
 
 const form = ref({
   email: '',

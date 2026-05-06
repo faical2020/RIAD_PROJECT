@@ -4,9 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build:dev": "vite build --minify false --mode development",
-    "build": "vite build --mode production",
+    "dev": "vite --config vite.config.desktop.js --mode desktop",
+    "dev:web": "vite --config vite.config.web.js --mode web",
+    "build:dev": "vite build --config vite.config.desktop.js --minify false --mode development",
+    "build": "vite build --config vite.config.desktop.js --mode production",
+    "build:web": "vite build --config vite.config.web.js --mode web",
+    "build:desktop": "vite build --config vite.config.desktop.js --mode desktop",
     "preview": "vite preview"
   },
   "dependencies": {

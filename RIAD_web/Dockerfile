@@ -11,8 +11,8 @@ FROM alpine:latest
 WORKDIR /root/
 # Copy binary from builder
 COPY --from=builder /app/riad-web .
-# Copy static assets from RIAD_APP/frontend/dist
-COPY RIAD_APP/frontend/dist ./dist
+# Copy static assets from RIAD_APP/frontend/dist-web
+COPY RIAD_APP/frontend/dist-web ./dist
 
 EXPOSE 8080
 CMD ["./riad-web"]
