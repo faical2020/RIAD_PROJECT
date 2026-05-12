@@ -4,7 +4,6 @@ package riad.sync;
 
 option go_package = "github.com/anomalyco/riad_project/proto/sync";
 
-// Representation of a Room
 message Room {
     string id = 1;
     int32 number = 2;
@@ -16,7 +15,6 @@ message Room {
     string cleaning_status = 8;
 }
 
-// Representation of a Reservation
 message Reservation {
     string id = 1;
     string user_id = 2;
@@ -27,13 +25,21 @@ message Reservation {
     string status = 7;
 }
 
-// The event sent by the server to the client
+message Consommation {
+    string id = 1;
+    string reservation_id = 2;
+    string libelle = 3;
+    int32 quantite = 4;
+    double prix_unitaire = 5;
+}
+
 message SyncEvent {
     enum EventType {
         ROOM_UPDATED = 0;
         RESERVATION_UPDATED = 1;
         ROOM_DELETED = 2;
         RESERVATION_DELETED = 3;
+        CONSOMMATION_UPDATED = 4;
     }
 
     EventType type = 1;
@@ -42,18 +48,16 @@ message SyncEvent {
     oneof data {
         Room room = 3;
         Reservation reservation = 4;
+        Consommation consommation = 6;
     }
 
     int64 sequence_id = 5;
 }
 
-// Request to start the synchronization stream
 message SyncRequest {
     string token = 1;
     int64 last_sequence_id = 2;
 }
-
-// --- Mutation messages ---
 
 message GetChambresRequest {}
 message GetChambresResponse {
@@ -80,33 +84,20 @@ message UpdateCleaningStatusResponse {
     Room room = 1;
 }
 
-message CheckinRequest {
-    string reservation_id = 1;
-}
-message CheckinResponse {
-    Reservation reservation = 1;
-}
+message CheckinRequest { string reservation_id = 1; }
+message CheckinResponse { Reservation reservation = 1; }
 
-message CheckoutRequest {
-    string reservation_id = 1;
-}
-message CheckoutResponse {
-    Reservation reservation = 1;
-}
+message CheckoutRequest { string reservation_id = 1; }
+message CheckoutResponse { Reservation reservation = 1; }
 
-message SyncDataRequest {
-    int64 last_sequence_id = 1;
-}
+message SyncDataRequest { int64 last_sequence_id = 1; }
 message SyncDataResponse {
     repeated Room rooms = 1;
     repeated Reservation reservations = 2;
 }
 
 service SyncService {
-    // Server-to-Client streaming RPC for real-time updates
     rpc StreamUpdates(SyncRequest) returns (stream SyncEvent);
-
-    // Mutation RPCs (authenticated via gRPC metadata/interceptors)
     rpc GetChambres(GetChambresRequest) returns (GetChambresResponse);
     rpc CreateReservation(CreateReservationRequest) returns (CreateReservationResponse);
     rpc UpdateCleaningStatus(UpdateCleaningStatusRequest) returns (UpdateCleaningStatusResponse);

@@ -2,31 +2,45 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"time"
 
-	"github.com/google/uuid"
 	"RIAD_APP/internal/db"
-	"RIAD_APP/pkg/logic"
 	pb "github.com/anomalyco/riad_project/proto/sync"
+	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
 
-var debugLog *log.Logger
-
-func init() {
-	f, err := os.OpenFile("/tmp/riad_debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Printf("Could not open debug log: %v\n", err)
-		return
-	}
-	debugLog = log.New(f, "[RIAD_DEBUG] ", log.LstdFlags)
+func structToMap(obj interface{}) map[string]interface{} {
+	data, _ := json.Marshal(obj)
+	var m map[string]interface{}
+	json.Unmarshal(data, &m)
+	return m
 }
+
+func roomsToMaps(rooms []db.Room) []map[string]interface{} {
+	result := make([]map[string]interface{}, len(rooms))
+	for i, r := range rooms {
+		result[i] = structToMap(r)
+	}
+	return result
+}
+
+func reservationsToMaps(reservations []db.Reservation) []map[string]interface{} {
+	result := make([]map[string]interface{}, len(reservations))
+	for i, r := range reservations {
+		result[i] = structToMap(r)
+	}
+	return result
+}
+
+var slogger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 type RiadService struct {
 	ctx               context.Context
@@ -39,14 +53,10 @@ type RiadService struct {
 }
 
 func NewRiadService() *RiadService {
-	return &RiadService{
-		apiBaseURL: "http://localhost:8081/api/v1",
-	}
+	return &RiadService{apiBaseURL: "http://localhost:8081/api/v1"}
 }
 
-func (s *RiadService) SetApp(app *application.App) {
-	s.app = app
-}
+func (s *RiadService) SetApp(app *application.App) { s.app = app }
 
 func (s *RiadService) dialGRPC() {
 	if s.grpcConn != nil {
@@ -54,16 +64,12 @@ func (s *RiadService) dialGRPC() {
 	}
 	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		if debugLog != nil {
-			debugLog.Printf("gRPC Dial failed: %v\n", err)
-		}
+		slogger.Warn("gRPC dial failed", "error", err)
 		return
 	}
 	s.grpcConn = conn
 	s.grpcClient = pb.NewSyncServiceClient(conn)
-	if debugLog != nil {
-		debugLog.Println("gRPC client created successfully")
-	}
+	slogger.Info("gRPC client created")
 }
 
 func (s *RiadService) grpcCtx() context.Context {
@@ -73,9 +79,7 @@ func (s *RiadService) grpcCtx() context.Context {
 
 func (s *RiadService) SetToken(token string) {
 	s.token = token
-	if debugLog != nil {
-		debugLog.Printf("SetToken called: token received (length: %d)\n", len(token))
-	}
+	slogger.Info("token set", "length", len(token))
 	s.dialGRPC()
 	go s.performSync()
 	go s.startGRPCStream()
@@ -91,31 +95,19 @@ func (s *RiadService) startGRPCStream() {
 		case <-s.ctx.Done():
 			return
 		default:
-			if debugLog != nil {
-				debugLog.Println("Attempting to connect to gRPC sync stream...")
-			}
-
-			stream, err := s.grpcClient.StreamUpdates(s.ctx, &pb.SyncRequest{
-				Token: s.token,
-			})
+			slogger.Debug("connecting to gRPC sync stream")
+			stream, err := s.grpcClient.StreamUpdates(s.ctx, &pb.SyncRequest{Token: s.token})
 			if err != nil {
-				if debugLog != nil {
-					debugLog.Printf("gRPC StreamUpdates failed: %v. Retrying in 5s...\n", err)
-				}
+				slogger.Warn("gRPC stream failed, retrying in 5s", "error", err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
-
-			if debugLog != nil {
-				debugLog.Println("Connected to gRPC sync stream!")
-			}
+			slogger.Info("connected to gRPC sync stream")
 
 			for {
 				event, err := stream.Recv()
 				if err != nil {
-					if debugLog != nil {
-						debugLog.Printf("gRPC stream recv error: %v. Reconnecting...\n", err)
-					}
+					slogger.Warn("gRPC stream recv error, reconnecting", "error", err)
 					break
 				}
 				s.handleSyncEvent(event)
@@ -126,222 +118,114 @@ func (s *RiadService) startGRPCStream() {
 }
 
 func (s *RiadService) handleSyncEvent(event *pb.SyncEvent) {
-	if debugLog != nil {
-		debugLog.Printf("!!! gRPC EVENT RECEIVED: type=%v, id=%s\n", event.Type, event.EntityId)
-	}
-
 	switch event.Type {
 	case pb.SyncEvent_ROOM_UPDATED:
 		if room := event.GetRoom(); room != nil {
-			log.Printf("Updating local room %s from gRPC", room.Id)
+			slogger.Info("room update from gRPC", "id", room.Id)
 			db.SaveRoom(room.Id, int(room.Number), room.Type, room.Price, room.Description, room.Equipments, room.Status, room.CleaningStatus)
 			if s.app != nil {
-				log.Printf("Emitting Wails event sync:rooms for room %s", room.Id)
 				s.app.Event.Emit("sync:rooms", "updated")
-			} else {
-				log.Printf("ERROR: s.app is nil, cannot emit event")
 			}
 		}
 	case pb.SyncEvent_RESERVATION_UPDATED:
 		if res := event.GetReservation(); res != nil {
-			log.Printf("Updating local reservation %s from gRPC", res.Id)
+			slogger.Info("reservation update from gRPC", "id", res.Id)
 			db.SaveReservation(res.Id, res.UserId, res.RoomId, res.StartDate, res.EndDate, res.Amount, res.Status)
 			db.MarkSynced("reservations", res.Id)
 			if s.app != nil {
-				log.Printf("Emitting Wails event sync:reservations for res %s", res.Id)
 				s.app.Event.Emit("sync:reservations", "updated")
-			} else {
-				log.Printf("ERROR: s.app is nil, cannot emit event")
 			}
+		}
+	case pb.SyncEvent_CONSOMMATION_UPDATED:
+		if s.app != nil {
+			s.app.Event.Emit("sync:consommations", "updated")
 		}
 	}
 }
 
-func (s *RiadService) SetContext(ctx context.Context) {
-	s.ctx = ctx
-}
+func (s *RiadService) SetContext(ctx context.Context) { s.ctx = ctx }
 
 func (s *RiadService) GetLocalRooms() ([]map[string]interface{}, error) {
-	return db.GetRooms()
+	rooms, err := db.GetRooms()
+	if err != nil {
+		return nil, err
+	}
+	return roomsToMaps(rooms), nil
 }
 
 func (s *RiadService) GetLocalReservations() ([]map[string]interface{}, error) {
-	return db.GetReservations()
+	reservations, err := db.GetReservations()
+	if err != nil {
+		return nil, err
+	}
+	return reservationsToMaps(reservations), nil
 }
 
 func (s *RiadService) CreateLocalReservation(userID, roomID, start, end string, amount float64) (string, error) {
 	if s.grpcClient != nil {
 		resp, err := s.grpcClient.CreateReservation(s.grpcCtx(), &pb.CreateReservationRequest{
-			UserId:    userID,
-			RoomId:    roomID,
-			StartDate: start,
-			EndDate:   end,
-			Amount:    amount,
+			UserId: userID, RoomId: roomID, StartDate: start, EndDate: end, Amount: amount,
 		})
 		if err == nil && resp.Id != "" {
-			if debugLog != nil {
-				debugLog.Printf("Reservation created via gRPC: id=%s\n", resp.Id)
-			}
+			slogger.Info("reservation created via gRPC", "id", resp.Id)
 			db.SaveReservation(resp.Id, userID, roomID, start, end, amount, resp.Status)
 			db.MarkSynced("reservations", resp.Id)
 			return resp.Id, nil
 		}
-		if debugLog != nil {
-			debugLog.Printf("gRPC CreateReservation failed: %v. Falling back to local.\n", err)
-		}
+		slogger.Warn("gRPC CreateReservation failed, saving locally", "error", err)
 	}
 
-	rawRooms, err := db.GetRooms()
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch rooms for validation: %v", err)
-	}
-
-	var rooms []logic.Room
-	for _, r := range rawRooms {
-		rooms = append(rooms, logic.Room{
-			ID:          r["id"].(string),
-			Number:      r["numero"].(int),
-			Type:        r["type"].(string),
-			Price:       r["prix"].(float64),
-			Description: r["description"].(string),
-			Equipments:  r["equipements"].(string),
-			Status:      r["statut"].(string),
-		})
-	}
-
-	res := logic.Reservation{
+	res := db.Reservation{
 		ID:        uuid.New().String(),
 		UserID:    userID,
-		RoomID:    roomID,
-		Amount:    amount,
-		Status:    "pending",
-		StartDate: time.Now(),
-		EndDate:   time.Now(),
+		ChambreID: roomID,
+		DateDebut: start,
+		DateFin:   end,
+		Montant:   amount,
+		Statut:    "pending",
 	}
-
-	if err := logic.ValidateReservation(res, rooms); err != nil {
-		return "", err
+	if err := db.DB.Create(&res).Error; err != nil {
+		return "", fmt.Errorf("failed to save local reservation: %w", err)
 	}
-
-	err = db.SaveReservation(res.ID, res.UserID, res.RoomID, start, end, res.Amount, res.Status)
-	if err != nil {
-		return "", err
-	}
-
 	return res.ID, nil
 }
 
 func (s *RiadService) UpdateLocalRoom(id string, num int, roomType string, price float64, desc, equip, status string) error {
-	if debugLog != nil {
-		debugLog.Printf("UpdateLocalRoom called: ID=%s, Num=%d, Price=%.2f\n", id, num, price)
-	}
-	room := logic.Room{
-		ID:          id,
-		Number:      num,
-		Type:        roomType,
-		Price:       price,
-		Description: desc,
-		Equipments:  equip,
-		Status:      status,
-	}
-
-	if err := logic.ValidateRoom(room); err != nil {
-		if debugLog != nil {
-			debugLog.Printf("Validation failed for room %s: %v\n", id, err)
-		}
-		return err
-	}
-
-	err := db.SaveRoom(id, num, roomType, price, desc, equip, status, "propre")
-	if err != nil {
-		if debugLog != nil {
-			debugLog.Printf("db.SaveRoom failed for room %s: %v\n", id, err)
-		}
-		return err
-	}
-	if debugLog != nil {
-		debugLog.Printf("Room %s saved successfully to local DB\n", id)
-	}
-	return nil
+	slogger.Info("updating local room", "id", id, "num", num)
+	return db.SaveRoom(id, num, roomType, price, desc, equip, status, "propre")
 }
 
-func (s *RiadService) UpdateLocalReservation(id string, userId, roomId, start, end string, amount float64, status string) error {
-	if debugLog != nil {
-		debugLog.Printf("UpdateLocalReservation called: ID=%s\n", id)
-	}
-	err := db.SaveReservation(id, userId, roomId, start, end, amount, status)
-	if err != nil {
-		if debugLog != nil {
-			debugLog.Printf("db.SaveReservation failed for reservation %s: %v\n", id, err)
-		}
-		return err
-	}
-	if debugLog != nil {
-		debugLog.Printf("Reservation %s updated successfully in local DB\n", id)
-	}
-	return nil
+func (s *RiadService) UpdateLocalReservation(id, userId, roomId, start, end string, amount float64, status string) error {
+	slogger.Info("updating local reservation", "id", id)
+	return db.SaveReservation(id, userId, roomId, start, end, amount, status)
 }
 
 func (s *RiadService) UpdateCleaningStatus(id, status string) error {
-	if debugLog != nil {
-		debugLog.Printf("UpdateCleaningStatus called: ID=%s, Status=%s\n", id, status)
-	}
+	slogger.Info("updating cleaning status", "id", id, "status", status)
 
 	if s.grpcClient != nil {
-		_, err := s.grpcClient.UpdateCleaningStatus(s.grpcCtx(), &pb.UpdateCleaningStatusRequest{
-			RoomId:         id,
-			CleaningStatus: status,
-		})
+		_, err := s.grpcClient.UpdateCleaningStatus(s.grpcCtx(), &pb.UpdateCleaningStatusRequest{RoomId: id, CleaningStatus: status})
 		if err == nil {
-			if debugLog != nil {
-				debugLog.Printf("Cleaning status updated via gRPC for room %s\n", id)
-			}
 			if s.app != nil {
 				s.app.Event.Emit("sync:rooms", "updated")
 			}
 			return nil
 		}
-		if debugLog != nil {
-			debugLog.Printf("gRPC UpdateCleaningStatus failed: %v. Falling back to local.\n", err)
-		}
+		slogger.Warn("gRPC UpdateCleaningStatus failed", "error", err)
 	}
 
-	rawRooms, err := db.GetRooms()
+	room, err := db.GetRoomByID(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("room not found: %w", err)
 	}
 
-	var room map[string]interface{}
-	for _, r := range rawRooms {
-		if r["id"] == id {
-			room = r
-			break
-		}
-	}
-
-	if room == nil {
-		return fmt.Errorf("room not found")
-	}
-
-	err = db.SaveRoom(
-		id,
-		int(room["numero"].(int)),
-		room["type"].(string),
-		room["prix"].(float64),
-		room["description"].(string),
-		room["equipements"].(string),
-		room["statut"].(string),
-		status,
-	)
-
-	if err != nil {
+	if err := db.SaveRoom(id, room.Numero, room.Type, room.Prix, room.Description, room.Equipements, room.Statut, status); err != nil {
 		return err
 	}
 
 	if s.app != nil {
 		s.app.Event.Emit("sync:rooms", "updated")
 	}
-
 	return nil
 }
 
@@ -350,20 +234,19 @@ func (s *RiadService) MarkAsSynced(table, id string) error {
 }
 
 func (s *RiadService) GetUnsynced(table string) ([]map[string]interface{}, error) {
-	return db.GetUnsynced(table)
+	reservations, err := db.GetUnsynced(table)
+	if err != nil {
+		return nil, err
+	}
+	return reservationsToMaps(reservations), nil
 }
 
 func (s *RiadService) StartSyncLoop() {
 	go func() {
+		slogger.Info("background sync loop started")
 		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
-
-		if debugLog != nil {
-			debugLog.Println("Background sync loop started (Debug mode: 10s)")
-		}
-
 		s.performSync()
-
 		for {
 			select {
 			case <-s.ctx.Done():
@@ -377,58 +260,41 @@ func (s *RiadService) StartSyncLoop() {
 
 func (s *RiadService) performSync() {
 	if s.token == "" {
-		if debugLog != nil {
-			debugLog.Println("Sync skipped: no token present")
-		}
+		slogger.Debug("sync skipped: no token")
 		return
 	}
-	if debugLog != nil {
-		debugLog.Println("Running gRPC background sync...")
-	}
-
+	slogger.Debug("running gRPC background sync")
 	s.gRPCPullUpdates()
 	s.gRPCSyncReservations()
 }
 
 func (s *RiadService) gRPCPullUpdates() {
 	if s.grpcClient == nil {
-		if debugLog != nil {
-			debugLog.Println("gRPC pull skipped: no client")
-		}
+		slogger.Debug("gRPC pull skipped: no client")
 		return
 	}
 
-	resp, err := s.grpcClient.SyncData(s.grpcCtx(), &pb.SyncDataRequest{
-		LastSequenceId: s.lastSyncTimestamp,
-	})
+	resp, err := s.grpcClient.SyncData(s.grpcCtx(), &pb.SyncDataRequest{LastSequenceId: s.lastSyncTimestamp})
 	if err != nil {
-		if debugLog != nil {
-			debugLog.Printf("gRPC SyncData failed: %v\n", err)
-		}
+		slogger.Warn("gRPC SyncData failed", "error", err)
 		return
 	}
 
 	for _, room := range resp.Rooms {
 		if err := db.SaveRoom(room.Id, int(room.Number), room.Type, room.Price, room.Description, room.Equipments, room.Status, room.CleaningStatus); err != nil {
-			if debugLog != nil {
-				debugLog.Printf("Error saving pulled room %s: %v\n", room.Id, err)
-			}
+			slogger.Error("failed to save pulled room", "id", room.Id, "error", err)
 		}
 	}
 
 	for _, res := range resp.Reservations {
 		if err := db.SaveReservation(res.Id, res.UserId, res.RoomId, res.StartDate, res.EndDate, res.Amount, res.Status); err != nil {
-			if debugLog != nil {
-				debugLog.Printf("Error saving pulled reservation %s: %v\n", res.Id, err)
-			}
+			slogger.Error("failed to save pulled reservation", "id", res.Id, "error", err)
 		}
 		db.MarkSynced("reservations", res.Id)
 	}
 
 	s.lastSyncTimestamp = time.Now().Unix()
-	if debugLog != nil {
-		debugLog.Printf("Successfully synced %d rooms and %d reservations from server via gRPC\n", len(resp.Rooms), len(resp.Reservations))
-	}
+	slogger.Info("sync pull complete", "rooms", len(resp.Rooms), "reservations", len(resp.Reservations))
 }
 
 func (s *RiadService) gRPCSyncReservations() {
@@ -437,47 +303,22 @@ func (s *RiadService) gRPCSyncReservations() {
 	}
 
 	unsynced, err := db.GetUnsynced("reservations")
-	if err != nil {
-		if debugLog != nil {
-			debugLog.Printf("Error fetching unsynced reservations: %v\n", err)
-		}
+	if err != nil || len(unsynced) == 0 {
 		return
 	}
 
-	if len(unsynced) == 0 {
-		return
-	}
-
-	for _, resMap := range unsynced {
-		userID, _ := resMap["user_id"].(string)
-		roomID, _ := resMap["chambre_id"].(string)
-		start, _ := resMap["date_debut"].(string)
-		end, _ := resMap["date_fin"].(string)
-		amount, _ := resMap["montant"].(float64)
-		id, _ := resMap["id"].(string)
-
+	for _, res := range unsynced {
 		resp, err := s.grpcClient.CreateReservation(s.grpcCtx(), &pb.CreateReservationRequest{
-			UserId:    userID,
-			RoomId:    roomID,
-			StartDate: start,
-			EndDate:   end,
-			Amount:    amount,
+			UserId: res.UserID, RoomId: res.ChambreID,
+			StartDate: res.DateDebut, EndDate: res.DateFin, Amount: res.Montant,
 		})
 		if err != nil {
-			if debugLog != nil {
-				debugLog.Printf("gRPC sync failed for reservation %s: %v\n", id, err)
-			}
+			slogger.Warn("gRPC sync failed for reservation", "id", res.ID, "error", err)
 			continue
 		}
-
 		if resp.Id != "" {
-			if err := db.MarkSynced("reservations", id); err != nil {
-				if debugLog != nil {
-					debugLog.Printf("Error marking reservation %s as synced: %v\n", id, err)
-				}
-			} else if debugLog != nil {
-				debugLog.Printf("Successfully synced reservation %s via gRPC (server id: %s)\n", id, resp.Id)
-			}
+			db.MarkSynced("reservations", res.ID)
+			slogger.Info("synced reservation", "local_id", res.ID, "server_id", resp.Id)
 		}
 	}
 }

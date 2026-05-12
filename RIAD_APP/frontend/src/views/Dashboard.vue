@@ -8,14 +8,21 @@ const riad = useRiadStore()
 
 onMounted(async () => {
   await riad.fetchRooms()
-  await riad.fetchReservations()
+  if (authStore.isStaff) {
+    await riad.fetchReservations()
+  } else {
+    await riad.fetchMyReservations()
+  }
 })
 
 const stats = computed(() => [
   { icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>', label: 'Chambres', value: riad.rooms.length, color: 'from-gold-500 to-amber-500', bg: 'bg-gold-50 text-gold-600' },
   { icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>', label: 'Libres', value: riad.availableRooms.length, color: 'from-green-500 to-emerald-500', bg: 'bg-green-50 text-green-600' },
   { icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>', label: 'Occupées', value: riad.occupiedRooms.length, color: 'from-red-500 to-rose-500', bg: 'bg-red-50 text-red-600' },
-  ...(authStore.isStaff ? [{ icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>', label: 'Réservations', value: riad.reservations.length, color: 'from-blue-500 to-indigo-500', bg: 'bg-blue-50 text-blue-600' }] : [])
+  ...(authStore.isStaff
+    ? [{ icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>', label: 'Réservations', value: riad.reservations.length, color: 'from-blue-500 to-indigo-500', bg: 'bg-blue-50 text-blue-600' }]
+    : [{ icon: '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>', label: 'Mes réservations', value: riad.reservations.length, color: 'from-blue-500 to-indigo-500', bg: 'bg-blue-50 text-blue-600' }]
+  )
 ])
 
 const cleaningStats = computed(() => {
@@ -114,8 +121,8 @@ function statutClass(s) {
       <!-- Reservations -->
       <div class="card overflow-hidden">
         <div class="flex items-center justify-between p-4 sm:p-5 border-b border-riad-100">
-          <h3 class="font-semibold text-riad-900">Réservations récentes</h3>
-          <RouterLink to="/reservations" class="text-sm text-gold-600 hover:text-gold-700 font-semibold">Voir tout →</RouterLink>
+          <h3 class="font-semibold text-riad-900">{{ authStore.isStaff ? 'Réservations récentes' : 'Mes réservations' }}</h3>
+          <RouterLink v-if="authStore.isStaff" to="/reservations" class="text-sm text-gold-600 hover:text-gold-700 font-semibold">Voir tout →</RouterLink>
         </div>
         <div class="p-4 sm:p-5 space-y-2">
           <div v-if="riad.loading" class="text-center py-8 text-riad-400 text-sm">Chargement...</div>

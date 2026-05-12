@@ -9,6 +9,12 @@ import (
 	"gorm.io/gorm"
 )
 
+var tokenStore = logic.NewRefreshTokenStore(nil)
+
+func SetTokenStore(store *logic.RefreshTokenStore) {
+	tokenStore = store
+}
+
 func Register(c *gin.Context) {
 	var user logic.User
 	if err := c.ShouldBindJSON(&user); err != nil {
@@ -34,13 +40,54 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	token, role, user, err := logic.AuthenticateUser(db.GetDB(), credentials.Email, credentials.Password)
+	tokenPair, role, user, err := logic.AuthenticateUser(db.GetDB(), credentials.Email, credentials.Password, tokenStore)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "identifiants invalides"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": token, "role": role, "user": user})
+	c.JSON(http.StatusOK, gin.H{
+		"access_token":  tokenPair.AccessToken,
+		"refresh_token": tokenPair.RefreshToken,
+		"role":          role,
+		"user":          user,
+	})
+}
+
+func RefreshToken(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "refresh_token requis"})
+		return
+	}
+
+	tokenPair, err := logic.RefreshAccessToken(req.RefreshToken, tokenStore, db.GetDB())
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "token de rafraîchissement invalide ou expiré"})
+		return
+	}
+
+	c.JSON(http.StatusOK, tokenPair)
+}
+
+func Logout(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	c.ShouldBindJSON(&req)
+
+	if req.RefreshToken != "" {
+		tokenStore.Revoke(req.RefreshToken)
+	}
+
+	userID, _ := c.Get("user_id")
+	if uid, ok := userID.(string); ok {
+		tokenStore.RevokeAllForUser(uid)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "déconnexion réussie"})
 }
 
 func GetCurrentUser(c *gin.Context) {

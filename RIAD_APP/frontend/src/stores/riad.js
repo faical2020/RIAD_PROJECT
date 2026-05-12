@@ -62,6 +62,14 @@ export const useRiadStore = defineStore('riad', {
             }
         },
 
+        async fetchMyReservations() {
+            try {
+                this.reservations = await riadService.getMyReservations()
+            } catch (e) {
+                console.error('Failed to fetch my reservations', e)
+            }
+        },
+
         async createReservation(reservationData) {
             try {
                 const result = await riadService.createReservation(reservationData)

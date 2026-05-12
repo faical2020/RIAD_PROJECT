@@ -24,10 +24,11 @@ const (
 type SyncEvent_EventType int32
 
 const (
-	SyncEvent_ROOM_UPDATED        SyncEvent_EventType = 0
-	SyncEvent_RESERVATION_UPDATED SyncEvent_EventType = 1
-	SyncEvent_ROOM_DELETED        SyncEvent_EventType = 2
-	SyncEvent_RESERVATION_DELETED SyncEvent_EventType = 3
+	SyncEvent_ROOM_UPDATED         SyncEvent_EventType = 0
+	SyncEvent_RESERVATION_UPDATED  SyncEvent_EventType = 1
+	SyncEvent_ROOM_DELETED         SyncEvent_EventType = 2
+	SyncEvent_RESERVATION_DELETED  SyncEvent_EventType = 3
+	SyncEvent_CONSOMMATION_UPDATED SyncEvent_EventType = 4
 )
 
 // Enum value maps for SyncEvent_EventType.
@@ -37,12 +38,14 @@ var (
 		1: "RESERVATION_UPDATED",
 		2: "ROOM_DELETED",
 		3: "RESERVATION_DELETED",
+		4: "CONSOMMATION_UPDATED",
 	}
 	SyncEvent_EventType_value = map[string]int32{
-		"ROOM_UPDATED":        0,
-		"RESERVATION_UPDATED": 1,
-		"ROOM_DELETED":        2,
-		"RESERVATION_DELETED": 3,
+		"ROOM_UPDATED":         0,
+		"RESERVATION_UPDATED":  1,
+		"ROOM_DELETED":         2,
+		"RESERVATION_DELETED":  3,
+		"CONSOMMATION_UPDATED": 4,
 	}
 )
 
@@ -70,10 +73,9 @@ func (x SyncEvent_EventType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SyncEvent_EventType.Descriptor instead.
 func (SyncEvent_EventType) EnumDescriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{2, 0}
+	return file_sync_proto_rawDescGZIP(), []int{3, 0}
 }
 
-// Representation of a Room
 type Room struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -174,7 +176,6 @@ func (x *Room) GetCleaningStatus() string {
 	return ""
 }
 
-// Representation of a Reservation
 type Reservation struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -267,7 +268,82 @@ func (x *Reservation) GetStatus() string {
 	return ""
 }
 
-// The event sent by the server to the client
+type Consommation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ReservationId string                 `protobuf:"bytes,2,opt,name=reservation_id,json=reservationId,proto3" json:"reservation_id,omitempty"`
+	Libelle       string                 `protobuf:"bytes,3,opt,name=libelle,proto3" json:"libelle,omitempty"`
+	Quantite      int32                  `protobuf:"varint,4,opt,name=quantite,proto3" json:"quantite,omitempty"`
+	PrixUnitaire  float64                `protobuf:"fixed64,5,opt,name=prix_unitaire,json=prixUnitaire,proto3" json:"prix_unitaire,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Consommation) Reset() {
+	*x = Consommation{}
+	mi := &file_sync_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Consommation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Consommation) ProtoMessage() {}
+
+func (x *Consommation) ProtoReflect() protoreflect.Message {
+	mi := &file_sync_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Consommation.ProtoReflect.Descriptor instead.
+func (*Consommation) Descriptor() ([]byte, []int) {
+	return file_sync_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Consommation) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Consommation) GetReservationId() string {
+	if x != nil {
+		return x.ReservationId
+	}
+	return ""
+}
+
+func (x *Consommation) GetLibelle() string {
+	if x != nil {
+		return x.Libelle
+	}
+	return ""
+}
+
+func (x *Consommation) GetQuantite() int32 {
+	if x != nil {
+		return x.Quantite
+	}
+	return 0
+}
+
+func (x *Consommation) GetPrixUnitaire() float64 {
+	if x != nil {
+		return x.PrixUnitaire
+	}
+	return 0
+}
+
 type SyncEvent struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Type     SyncEvent_EventType    `protobuf:"varint,1,opt,name=type,proto3,enum=riad.sync.SyncEvent_EventType" json:"type,omitempty"`
@@ -276,6 +352,7 @@ type SyncEvent struct {
 	//
 	//	*SyncEvent_Room
 	//	*SyncEvent_Reservation
+	//	*SyncEvent_Consommation
 	Data          isSyncEvent_Data `protobuf_oneof:"data"`
 	SequenceId    int64            `protobuf:"varint,5,opt,name=sequence_id,json=sequenceId,proto3" json:"sequence_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -284,7 +361,7 @@ type SyncEvent struct {
 
 func (x *SyncEvent) Reset() {
 	*x = SyncEvent{}
-	mi := &file_sync_proto_msgTypes[2]
+	mi := &file_sync_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -296,7 +373,7 @@ func (x *SyncEvent) String() string {
 func (*SyncEvent) ProtoMessage() {}
 
 func (x *SyncEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[2]
+	mi := &file_sync_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -309,7 +386,7 @@ func (x *SyncEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncEvent.ProtoReflect.Descriptor instead.
 func (*SyncEvent) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{2}
+	return file_sync_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SyncEvent) GetType() SyncEvent_EventType {
@@ -351,6 +428,15 @@ func (x *SyncEvent) GetReservation() *Reservation {
 	return nil
 }
 
+func (x *SyncEvent) GetConsommation() *Consommation {
+	if x != nil {
+		if x, ok := x.Data.(*SyncEvent_Consommation); ok {
+			return x.Consommation
+		}
+	}
+	return nil
+}
+
 func (x *SyncEvent) GetSequenceId() int64 {
 	if x != nil {
 		return x.SequenceId
@@ -370,11 +456,16 @@ type SyncEvent_Reservation struct {
 	Reservation *Reservation `protobuf:"bytes,4,opt,name=reservation,proto3,oneof"`
 }
 
+type SyncEvent_Consommation struct {
+	Consommation *Consommation `protobuf:"bytes,6,opt,name=consommation,proto3,oneof"`
+}
+
 func (*SyncEvent_Room) isSyncEvent_Data() {}
 
 func (*SyncEvent_Reservation) isSyncEvent_Data() {}
 
-// Request to start the synchronization stream
+func (*SyncEvent_Consommation) isSyncEvent_Data() {}
+
 type SyncRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Token          string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
@@ -385,7 +476,7 @@ type SyncRequest struct {
 
 func (x *SyncRequest) Reset() {
 	*x = SyncRequest{}
-	mi := &file_sync_proto_msgTypes[3]
+	mi := &file_sync_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -397,7 +488,7 @@ func (x *SyncRequest) String() string {
 func (*SyncRequest) ProtoMessage() {}
 
 func (x *SyncRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[3]
+	mi := &file_sync_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -410,7 +501,7 @@ func (x *SyncRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
 func (*SyncRequest) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{3}
+	return file_sync_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SyncRequest) GetToken() string {
@@ -435,7 +526,7 @@ type GetChambresRequest struct {
 
 func (x *GetChambresRequest) Reset() {
 	*x = GetChambresRequest{}
-	mi := &file_sync_proto_msgTypes[4]
+	mi := &file_sync_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -447,7 +538,7 @@ func (x *GetChambresRequest) String() string {
 func (*GetChambresRequest) ProtoMessage() {}
 
 func (x *GetChambresRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[4]
+	mi := &file_sync_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -460,7 +551,7 @@ func (x *GetChambresRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetChambresRequest.ProtoReflect.Descriptor instead.
 func (*GetChambresRequest) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{4}
+	return file_sync_proto_rawDescGZIP(), []int{5}
 }
 
 type GetChambresResponse struct {
@@ -472,7 +563,7 @@ type GetChambresResponse struct {
 
 func (x *GetChambresResponse) Reset() {
 	*x = GetChambresResponse{}
-	mi := &file_sync_proto_msgTypes[5]
+	mi := &file_sync_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -484,7 +575,7 @@ func (x *GetChambresResponse) String() string {
 func (*GetChambresResponse) ProtoMessage() {}
 
 func (x *GetChambresResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[5]
+	mi := &file_sync_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -497,7 +588,7 @@ func (x *GetChambresResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetChambresResponse.ProtoReflect.Descriptor instead.
 func (*GetChambresResponse) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{5}
+	return file_sync_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetChambresResponse) GetRooms() []*Room {
@@ -520,7 +611,7 @@ type CreateReservationRequest struct {
 
 func (x *CreateReservationRequest) Reset() {
 	*x = CreateReservationRequest{}
-	mi := &file_sync_proto_msgTypes[6]
+	mi := &file_sync_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -532,7 +623,7 @@ func (x *CreateReservationRequest) String() string {
 func (*CreateReservationRequest) ProtoMessage() {}
 
 func (x *CreateReservationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[6]
+	mi := &file_sync_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -545,7 +636,7 @@ func (x *CreateReservationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateReservationRequest.ProtoReflect.Descriptor instead.
 func (*CreateReservationRequest) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{6}
+	return file_sync_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CreateReservationRequest) GetUserId() string {
@@ -593,7 +684,7 @@ type CreateReservationResponse struct {
 
 func (x *CreateReservationResponse) Reset() {
 	*x = CreateReservationResponse{}
-	mi := &file_sync_proto_msgTypes[7]
+	mi := &file_sync_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -605,7 +696,7 @@ func (x *CreateReservationResponse) String() string {
 func (*CreateReservationResponse) ProtoMessage() {}
 
 func (x *CreateReservationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[7]
+	mi := &file_sync_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -618,7 +709,7 @@ func (x *CreateReservationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateReservationResponse.ProtoReflect.Descriptor instead.
 func (*CreateReservationResponse) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{7}
+	return file_sync_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateReservationResponse) GetId() string {
@@ -645,7 +736,7 @@ type UpdateCleaningStatusRequest struct {
 
 func (x *UpdateCleaningStatusRequest) Reset() {
 	*x = UpdateCleaningStatusRequest{}
-	mi := &file_sync_proto_msgTypes[8]
+	mi := &file_sync_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -657,7 +748,7 @@ func (x *UpdateCleaningStatusRequest) String() string {
 func (*UpdateCleaningStatusRequest) ProtoMessage() {}
 
 func (x *UpdateCleaningStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[8]
+	mi := &file_sync_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -670,7 +761,7 @@ func (x *UpdateCleaningStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateCleaningStatusRequest.ProtoReflect.Descriptor instead.
 func (*UpdateCleaningStatusRequest) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{8}
+	return file_sync_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UpdateCleaningStatusRequest) GetRoomId() string {
@@ -696,7 +787,7 @@ type UpdateCleaningStatusResponse struct {
 
 func (x *UpdateCleaningStatusResponse) Reset() {
 	*x = UpdateCleaningStatusResponse{}
-	mi := &file_sync_proto_msgTypes[9]
+	mi := &file_sync_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -708,7 +799,7 @@ func (x *UpdateCleaningStatusResponse) String() string {
 func (*UpdateCleaningStatusResponse) ProtoMessage() {}
 
 func (x *UpdateCleaningStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[9]
+	mi := &file_sync_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -721,7 +812,7 @@ func (x *UpdateCleaningStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateCleaningStatusResponse.ProtoReflect.Descriptor instead.
 func (*UpdateCleaningStatusResponse) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{9}
+	return file_sync_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateCleaningStatusResponse) GetRoom() *Room {
@@ -740,7 +831,7 @@ type CheckinRequest struct {
 
 func (x *CheckinRequest) Reset() {
 	*x = CheckinRequest{}
-	mi := &file_sync_proto_msgTypes[10]
+	mi := &file_sync_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -752,7 +843,7 @@ func (x *CheckinRequest) String() string {
 func (*CheckinRequest) ProtoMessage() {}
 
 func (x *CheckinRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[10]
+	mi := &file_sync_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -765,7 +856,7 @@ func (x *CheckinRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckinRequest.ProtoReflect.Descriptor instead.
 func (*CheckinRequest) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{10}
+	return file_sync_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CheckinRequest) GetReservationId() string {
@@ -784,7 +875,7 @@ type CheckinResponse struct {
 
 func (x *CheckinResponse) Reset() {
 	*x = CheckinResponse{}
-	mi := &file_sync_proto_msgTypes[11]
+	mi := &file_sync_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -796,7 +887,7 @@ func (x *CheckinResponse) String() string {
 func (*CheckinResponse) ProtoMessage() {}
 
 func (x *CheckinResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[11]
+	mi := &file_sync_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -809,7 +900,7 @@ func (x *CheckinResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckinResponse.ProtoReflect.Descriptor instead.
 func (*CheckinResponse) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{11}
+	return file_sync_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CheckinResponse) GetReservation() *Reservation {
@@ -828,7 +919,7 @@ type CheckoutRequest struct {
 
 func (x *CheckoutRequest) Reset() {
 	*x = CheckoutRequest{}
-	mi := &file_sync_proto_msgTypes[12]
+	mi := &file_sync_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -840,7 +931,7 @@ func (x *CheckoutRequest) String() string {
 func (*CheckoutRequest) ProtoMessage() {}
 
 func (x *CheckoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[12]
+	mi := &file_sync_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -853,7 +944,7 @@ func (x *CheckoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckoutRequest.ProtoReflect.Descriptor instead.
 func (*CheckoutRequest) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{12}
+	return file_sync_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CheckoutRequest) GetReservationId() string {
@@ -872,7 +963,7 @@ type CheckoutResponse struct {
 
 func (x *CheckoutResponse) Reset() {
 	*x = CheckoutResponse{}
-	mi := &file_sync_proto_msgTypes[13]
+	mi := &file_sync_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -884,7 +975,7 @@ func (x *CheckoutResponse) String() string {
 func (*CheckoutResponse) ProtoMessage() {}
 
 func (x *CheckoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[13]
+	mi := &file_sync_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -897,7 +988,7 @@ func (x *CheckoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckoutResponse.ProtoReflect.Descriptor instead.
 func (*CheckoutResponse) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{13}
+	return file_sync_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CheckoutResponse) GetReservation() *Reservation {
@@ -916,7 +1007,7 @@ type SyncDataRequest struct {
 
 func (x *SyncDataRequest) Reset() {
 	*x = SyncDataRequest{}
-	mi := &file_sync_proto_msgTypes[14]
+	mi := &file_sync_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -928,7 +1019,7 @@ func (x *SyncDataRequest) String() string {
 func (*SyncDataRequest) ProtoMessage() {}
 
 func (x *SyncDataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[14]
+	mi := &file_sync_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -941,7 +1032,7 @@ func (x *SyncDataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncDataRequest.ProtoReflect.Descriptor instead.
 func (*SyncDataRequest) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{14}
+	return file_sync_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SyncDataRequest) GetLastSequenceId() int64 {
@@ -961,7 +1052,7 @@ type SyncDataResponse struct {
 
 func (x *SyncDataResponse) Reset() {
 	*x = SyncDataResponse{}
-	mi := &file_sync_proto_msgTypes[15]
+	mi := &file_sync_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -973,7 +1064,7 @@ func (x *SyncDataResponse) String() string {
 func (*SyncDataResponse) ProtoMessage() {}
 
 func (x *SyncDataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sync_proto_msgTypes[15]
+	mi := &file_sync_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -986,7 +1077,7 @@ func (x *SyncDataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncDataResponse.ProtoReflect.Descriptor instead.
 func (*SyncDataResponse) Descriptor() ([]byte, []int) {
-	return file_sync_proto_rawDescGZIP(), []int{15}
+	return file_sync_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SyncDataResponse) GetRooms() []*Room {
@@ -1028,19 +1119,27 @@ const file_sync_proto_rawDesc = "" +
 	"start_date\x18\x04 \x01(\tR\tstartDate\x12\x19\n" +
 	"\bend_date\x18\x05 \x01(\tR\aendDate\x12\x16\n" +
 	"\x06amount\x18\x06 \x01(\x01R\x06amount\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06status\"\xcb\x02\n" +
+	"\x06status\x18\a \x01(\tR\x06status\"\xa0\x01\n" +
+	"\fConsommation\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
+	"\x0ereservation_id\x18\x02 \x01(\tR\rreservationId\x12\x18\n" +
+	"\alibelle\x18\x03 \x01(\tR\alibelle\x12\x1a\n" +
+	"\bquantite\x18\x04 \x01(\x05R\bquantite\x12#\n" +
+	"\rprix_unitaire\x18\x05 \x01(\x01R\fprixUnitaire\"\xa4\x03\n" +
 	"\tSyncEvent\x122\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1e.riad.sync.SyncEvent.EventTypeR\x04type\x12\x1b\n" +
 	"\tentity_id\x18\x02 \x01(\tR\bentityId\x12%\n" +
 	"\x04room\x18\x03 \x01(\v2\x0f.riad.sync.RoomH\x00R\x04room\x12:\n" +
-	"\vreservation\x18\x04 \x01(\v2\x16.riad.sync.ReservationH\x00R\vreservation\x12\x1f\n" +
+	"\vreservation\x18\x04 \x01(\v2\x16.riad.sync.ReservationH\x00R\vreservation\x12=\n" +
+	"\fconsommation\x18\x06 \x01(\v2\x17.riad.sync.ConsommationH\x00R\fconsommation\x12\x1f\n" +
 	"\vsequence_id\x18\x05 \x01(\x03R\n" +
-	"sequenceId\"a\n" +
+	"sequenceId\"{\n" +
 	"\tEventType\x12\x10\n" +
 	"\fROOM_UPDATED\x10\x00\x12\x17\n" +
 	"\x13RESERVATION_UPDATED\x10\x01\x12\x10\n" +
 	"\fROOM_DELETED\x10\x02\x12\x17\n" +
-	"\x13RESERVATION_DELETED\x10\x03B\x06\n" +
+	"\x13RESERVATION_DELETED\x10\x03\x12\x18\n" +
+	"\x14CONSOMMATION_UPDATED\x10\x04B\x06\n" +
 	"\x04data\"M\n" +
 	"\vSyncRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12(\n" +
@@ -1098,55 +1197,57 @@ func file_sync_proto_rawDescGZIP() []byte {
 }
 
 var file_sync_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_sync_proto_goTypes = []any{
 	(SyncEvent_EventType)(0),             // 0: riad.sync.SyncEvent.EventType
 	(*Room)(nil),                         // 1: riad.sync.Room
 	(*Reservation)(nil),                  // 2: riad.sync.Reservation
-	(*SyncEvent)(nil),                    // 3: riad.sync.SyncEvent
-	(*SyncRequest)(nil),                  // 4: riad.sync.SyncRequest
-	(*GetChambresRequest)(nil),           // 5: riad.sync.GetChambresRequest
-	(*GetChambresResponse)(nil),          // 6: riad.sync.GetChambresResponse
-	(*CreateReservationRequest)(nil),     // 7: riad.sync.CreateReservationRequest
-	(*CreateReservationResponse)(nil),    // 8: riad.sync.CreateReservationResponse
-	(*UpdateCleaningStatusRequest)(nil),  // 9: riad.sync.UpdateCleaningStatusRequest
-	(*UpdateCleaningStatusResponse)(nil), // 10: riad.sync.UpdateCleaningStatusResponse
-	(*CheckinRequest)(nil),               // 11: riad.sync.CheckinRequest
-	(*CheckinResponse)(nil),              // 12: riad.sync.CheckinResponse
-	(*CheckoutRequest)(nil),              // 13: riad.sync.CheckoutRequest
-	(*CheckoutResponse)(nil),             // 14: riad.sync.CheckoutResponse
-	(*SyncDataRequest)(nil),              // 15: riad.sync.SyncDataRequest
-	(*SyncDataResponse)(nil),             // 16: riad.sync.SyncDataResponse
+	(*Consommation)(nil),                 // 3: riad.sync.Consommation
+	(*SyncEvent)(nil),                    // 4: riad.sync.SyncEvent
+	(*SyncRequest)(nil),                  // 5: riad.sync.SyncRequest
+	(*GetChambresRequest)(nil),           // 6: riad.sync.GetChambresRequest
+	(*GetChambresResponse)(nil),          // 7: riad.sync.GetChambresResponse
+	(*CreateReservationRequest)(nil),     // 8: riad.sync.CreateReservationRequest
+	(*CreateReservationResponse)(nil),    // 9: riad.sync.CreateReservationResponse
+	(*UpdateCleaningStatusRequest)(nil),  // 10: riad.sync.UpdateCleaningStatusRequest
+	(*UpdateCleaningStatusResponse)(nil), // 11: riad.sync.UpdateCleaningStatusResponse
+	(*CheckinRequest)(nil),               // 12: riad.sync.CheckinRequest
+	(*CheckinResponse)(nil),              // 13: riad.sync.CheckinResponse
+	(*CheckoutRequest)(nil),              // 14: riad.sync.CheckoutRequest
+	(*CheckoutResponse)(nil),             // 15: riad.sync.CheckoutResponse
+	(*SyncDataRequest)(nil),              // 16: riad.sync.SyncDataRequest
+	(*SyncDataResponse)(nil),             // 17: riad.sync.SyncDataResponse
 }
 var file_sync_proto_depIdxs = []int32{
 	0,  // 0: riad.sync.SyncEvent.type:type_name -> riad.sync.SyncEvent.EventType
 	1,  // 1: riad.sync.SyncEvent.room:type_name -> riad.sync.Room
 	2,  // 2: riad.sync.SyncEvent.reservation:type_name -> riad.sync.Reservation
-	1,  // 3: riad.sync.GetChambresResponse.rooms:type_name -> riad.sync.Room
-	1,  // 4: riad.sync.UpdateCleaningStatusResponse.room:type_name -> riad.sync.Room
-	2,  // 5: riad.sync.CheckinResponse.reservation:type_name -> riad.sync.Reservation
-	2,  // 6: riad.sync.CheckoutResponse.reservation:type_name -> riad.sync.Reservation
-	1,  // 7: riad.sync.SyncDataResponse.rooms:type_name -> riad.sync.Room
-	2,  // 8: riad.sync.SyncDataResponse.reservations:type_name -> riad.sync.Reservation
-	4,  // 9: riad.sync.SyncService.StreamUpdates:input_type -> riad.sync.SyncRequest
-	5,  // 10: riad.sync.SyncService.GetChambres:input_type -> riad.sync.GetChambresRequest
-	7,  // 11: riad.sync.SyncService.CreateReservation:input_type -> riad.sync.CreateReservationRequest
-	9,  // 12: riad.sync.SyncService.UpdateCleaningStatus:input_type -> riad.sync.UpdateCleaningStatusRequest
-	11, // 13: riad.sync.SyncService.Checkin:input_type -> riad.sync.CheckinRequest
-	13, // 14: riad.sync.SyncService.Checkout:input_type -> riad.sync.CheckoutRequest
-	15, // 15: riad.sync.SyncService.SyncData:input_type -> riad.sync.SyncDataRequest
-	3,  // 16: riad.sync.SyncService.StreamUpdates:output_type -> riad.sync.SyncEvent
-	6,  // 17: riad.sync.SyncService.GetChambres:output_type -> riad.sync.GetChambresResponse
-	8,  // 18: riad.sync.SyncService.CreateReservation:output_type -> riad.sync.CreateReservationResponse
-	10, // 19: riad.sync.SyncService.UpdateCleaningStatus:output_type -> riad.sync.UpdateCleaningStatusResponse
-	12, // 20: riad.sync.SyncService.Checkin:output_type -> riad.sync.CheckinResponse
-	14, // 21: riad.sync.SyncService.Checkout:output_type -> riad.sync.CheckoutResponse
-	16, // 22: riad.sync.SyncService.SyncData:output_type -> riad.sync.SyncDataResponse
-	16, // [16:23] is the sub-list for method output_type
-	9,  // [9:16] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	3,  // 3: riad.sync.SyncEvent.consommation:type_name -> riad.sync.Consommation
+	1,  // 4: riad.sync.GetChambresResponse.rooms:type_name -> riad.sync.Room
+	1,  // 5: riad.sync.UpdateCleaningStatusResponse.room:type_name -> riad.sync.Room
+	2,  // 6: riad.sync.CheckinResponse.reservation:type_name -> riad.sync.Reservation
+	2,  // 7: riad.sync.CheckoutResponse.reservation:type_name -> riad.sync.Reservation
+	1,  // 8: riad.sync.SyncDataResponse.rooms:type_name -> riad.sync.Room
+	2,  // 9: riad.sync.SyncDataResponse.reservations:type_name -> riad.sync.Reservation
+	5,  // 10: riad.sync.SyncService.StreamUpdates:input_type -> riad.sync.SyncRequest
+	6,  // 11: riad.sync.SyncService.GetChambres:input_type -> riad.sync.GetChambresRequest
+	8,  // 12: riad.sync.SyncService.CreateReservation:input_type -> riad.sync.CreateReservationRequest
+	10, // 13: riad.sync.SyncService.UpdateCleaningStatus:input_type -> riad.sync.UpdateCleaningStatusRequest
+	12, // 14: riad.sync.SyncService.Checkin:input_type -> riad.sync.CheckinRequest
+	14, // 15: riad.sync.SyncService.Checkout:input_type -> riad.sync.CheckoutRequest
+	16, // 16: riad.sync.SyncService.SyncData:input_type -> riad.sync.SyncDataRequest
+	4,  // 17: riad.sync.SyncService.StreamUpdates:output_type -> riad.sync.SyncEvent
+	7,  // 18: riad.sync.SyncService.GetChambres:output_type -> riad.sync.GetChambresResponse
+	9,  // 19: riad.sync.SyncService.CreateReservation:output_type -> riad.sync.CreateReservationResponse
+	11, // 20: riad.sync.SyncService.UpdateCleaningStatus:output_type -> riad.sync.UpdateCleaningStatusResponse
+	13, // 21: riad.sync.SyncService.Checkin:output_type -> riad.sync.CheckinResponse
+	15, // 22: riad.sync.SyncService.Checkout:output_type -> riad.sync.CheckoutResponse
+	17, // 23: riad.sync.SyncService.SyncData:output_type -> riad.sync.SyncDataResponse
+	17, // [17:24] is the sub-list for method output_type
+	10, // [10:17] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_sync_proto_init() }
@@ -1154,9 +1255,10 @@ func file_sync_proto_init() {
 	if File_sync_proto != nil {
 		return
 	}
-	file_sync_proto_msgTypes[2].OneofWrappers = []any{
+	file_sync_proto_msgTypes[3].OneofWrappers = []any{
 		(*SyncEvent_Room)(nil),
 		(*SyncEvent_Reservation)(nil),
+		(*SyncEvent_Consommation)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1164,7 +1266,7 @@ func file_sync_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sync_proto_rawDesc), len(file_sync_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

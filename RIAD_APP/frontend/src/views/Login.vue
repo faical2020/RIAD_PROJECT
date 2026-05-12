@@ -15,7 +15,7 @@ function fillDemo(email, password) {
 
 async function handleLogin() {
   const ok = await authStore.login(form.email, form.password)
-  if (ok) router.push('/')
+  if (ok) router.push('/app')
 }
 </script>
 

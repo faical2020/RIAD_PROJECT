@@ -3,6 +3,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
     {
+        path: '/',
+        name: 'Landing',
+        component: () => import('../views/Landing.vue'),
+        meta: { guest: true }
+    },
+    {
         path: '/login',
         name: 'Login',
         component: () => import('../views/Login.vue'),
@@ -15,7 +21,7 @@ const routes = [
         meta: { guest: true }
     },
     {
-        path: '/',
+        path: '/app',
         component: () => import('../components/DashboardLayout.vue'),
         meta: { requiresAuth: true },
         children: [
@@ -50,6 +56,21 @@ const routes = [
                 component: () => import('../views/NouvelleReservation.vue')
             },
             {
+                path: 'services',
+                name: 'Services',
+                component: () => import('../views/Services.vue')
+            },
+            {
+                path: 'consommations/:reservationId',
+                name: 'Consommations',
+                component: () => import('../views/Consommations.vue')
+            },
+            {
+                path: 'facture/:reservationId',
+                name: 'Facture',
+                component: () => import('../views/Facture.vue')
+            },
+            {
                 path: 'profil',
                 name: 'Profil',
                 component: () => import('../views/Profil.vue')
@@ -68,8 +89,12 @@ router.beforeEach((to, from) => {
 
     if (to.meta.requiresAuth && !auth.isAuthenticated) {
         return '/login'
-    } else if (to.meta.guest && auth.isAuthenticated) {
-        return '/'
+    }
+    if (to.meta.guest && auth.isAuthenticated && to.name !== 'Landing') {
+        return '/app'
+    }
+    if (to.name === 'Landing' && auth.isAuthenticated) {
+        return '/app'
     }
     return true
 })

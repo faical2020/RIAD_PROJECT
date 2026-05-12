@@ -2,7 +2,7 @@ package db
 
 import (
     "fmt"
-    "log"
+    "log/slog"
     "RIAD_SERVER/internal/logic"
     "gorm.io/driver/postgres"
     "gorm.io/gorm"
@@ -17,20 +17,21 @@ func InitPostgres(databaseURL string) error {
         return fmt.Errorf("échec connexion PostgreSQL: %w", err)
     }
 
-    log.Println("Migration des modèles...")
+    slog.Info("running migrations")
     err = DB.AutoMigrate(
         &logic.User{},
         &logic.Chambre{},
         &logic.Reservation{},
         &logic.Tache{},
         &logic.Service{},
+        &logic.Consommation{},
         &logic.Paiement{},
     )
     if err != nil {
         return fmt.Errorf("échec migration: %w", err)
     }
 
-    log.Println("Base PostgreSQL initialisée")
+    slog.Info("PostgreSQL initialized")
     return nil
 }
 

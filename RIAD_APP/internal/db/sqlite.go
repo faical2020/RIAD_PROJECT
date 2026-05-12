@@ -1,177 +1,165 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
-	_ "github.com/glebarez/go-sqlite"
+	"github.com/google/uuid"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-var DB *sql.DB
+var DB *gorm.DB
+
+type Room struct {
+	ID             string  `json:"id" gorm:"primaryKey"`
+	Numero         int     `json:"numero"`
+	Type           string  `json:"type"`
+	Prix           float64 `json:"prix"`
+	Description    string  `json:"description"`
+	Equipements    string  `json:"equipements"`
+	Statut         string  `json:"statut"`
+	CleaningStatus string  `json:"cleaning_status" gorm:"column:cleaning_status;default:propre"`
+	Synced         bool    `json:"synced" gorm:"default:1"`
+	CreatedAt      int64   `json:"created_at"`
+	UpdatedAt      int64   `json:"updated_at"`
+}
+
+func (r *Room) BeforeCreate(tx *gorm.DB) error {
+	if r.ID == "" {
+		r.ID = uuid.New().String()
+	}
+	now := time.Now().Unix()
+	r.CreatedAt = now
+	r.UpdatedAt = now
+	return nil
+}
+
+func (r *Room) BeforeUpdate(tx *gorm.DB) error {
+	r.UpdatedAt = time.Now().Unix()
+	return nil
+}
+
+type Reservation struct {
+	ID        string  `json:"id" gorm:"primaryKey"`
+	UserID    string  `json:"user_id" gorm:"column:user_id"`
+	ChambreID string  `json:"chambre_id" gorm:"column:chambre_id"`
+	DateDebut string  `json:"date_debut" gorm:"column:date_debut"`
+	DateFin   string  `json:"date_fin" gorm:"column:date_fin"`
+	Montant   float64 `json:"montant"`
+	Statut    string  `json:"statut"`
+	Synced    bool    `json:"synced" gorm:"default:0"`
+	CreatedAt int64   `json:"created_at"`
+	UpdatedAt int64   `json:"updated_at"`
+}
+
+func (r *Reservation) BeforeCreate(tx *gorm.DB) error {
+	if r.ID == "" {
+		r.ID = uuid.New().String()
+	}
+	now := time.Now().Unix()
+	r.CreatedAt = now
+	r.UpdatedAt = now
+	return nil
+}
+
+func (r *Reservation) BeforeUpdate(tx *gorm.DB) error {
+	r.UpdatedAt = time.Now().Unix()
+	return nil
+}
 
 func GetDBPath() string {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return "riad.db"
 	}
-	appDir := filepath.Join(configDir, "riad_app")
-	return filepath.Join(appDir, "riad.db")
+	return filepath.Join(configDir, "riad_app", "riad.db")
 }
 
 func InitDB(path string) error {
-	var err error
 	dir := filepath.Dir(path)
 	if dir != "." {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("erreur creation dossier db: %v", err)
 		}
 	}
-	DB, err = sql.Open("sqlite", path)
+
+	var err error
+	DB, err = gorm.Open(sqlite.Open(path), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		return fmt.Errorf("erreur ouverture db: %v", err)
 	}
 
-	schema := `
-	CREATE TABLE IF NOT EXISTS users (
-		id TEXT PRIMARY KEY,
-		email TEXT UNIQUE,
-		nom TEXT,
-		prenom TEXT,
-		role TEXT,
-		synced BOOLEAN DEFAULT 1
-	);
-	CREATE TABLE IF NOT EXISTS rooms (
-		id TEXT PRIMARY KEY,
-		numero INTEGER,
-		type TEXT,
-		prix REAL,
-		description TEXT,
-		equipements TEXT,
-		statut TEXT,
-		cleaning_status TEXT DEFAULT 'propre',
-		synced BOOLEAN DEFAULT 1,
-		created_at INTEGER,
-		updated_at INTEGER
-	);
-	CREATE TABLE IF NOT EXISTS reservations (
-		id TEXT PRIMARY KEY,
-		user_id TEXT,
-		chambre_id TEXT,
-		date_debut TEXT,
-		date_fin TEXT,
-		montant REAL,
-		statut TEXT,
-		synced BOOLEAN DEFAULT 0,
-		created_at INTEGER,
-		updated_at INTEGER
-	);
-	`
-	_, err = DB.Exec(schema)
-	if err != nil {
-		return fmt.Errorf("erreur schema: %v", err)
+	if err := DB.AutoMigrate(&Room{}, &Reservation{}); err != nil {
+		return fmt.Errorf("erreur migration: %v", err)
 	}
 	return nil
 }
 
-func GetRooms() ([]map[string]interface{}, error) {
-	rows, err := DB.Query("SELECT * FROM rooms")
-	if err != nil {
+func GetRooms() ([]Room, error) {
+	var rooms []Room
+	if err := DB.Find(&rooms).Error; err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	var rooms []map[string]interface{}
-	for rows.Next() {
-		var id, roomType, desc, equip, status, cleaningStatus string
-		var num int
-		var price float64
-		var synced bool
-		var createdAt, updatedAt int64
-		if err := rows.Scan(&id, &num, &roomType, &price, &desc, &equip, &status, &cleaningStatus, &synced, &createdAt, &updatedAt); err != nil {
-			return nil, err
-		}
-		rooms = append(rooms, map[string]interface{}{
-			"id": id, "numero": num, "type": roomType, "prix": price, "description": desc, "equipements": equip, "statut": status, "cleaning_status": cleaningStatus, "synced": synced, "created_at": createdAt, "updated_at": updatedAt,
-		})
 	}
 	return rooms, nil
 }
 
-func GetReservations() ([]map[string]interface{}, error) {
-	rows, err := DB.Query("SELECT * FROM reservations")
-	if err != nil {
+func GetRoomByID(id string) (*Room, error) {
+	var room Room
+	if err := DB.First(&room, "id = ?", id).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	return &room, nil
+}
 
-	var results []map[string]interface{}
-	cols, _ := rows.Columns()
-	for rows.Next() {
-		columns := make([]interface{}, len(cols))
-		columnPointers := make([]interface{}, len(cols))
-		for i := range columns {
-			columnPointers[i] = &columns[i]
-		}
-
-		if err := rows.Scan(columnPointers...); err != nil {
-			return nil, err
-		}
-
-		m := make(map[string]interface{})
-		for i, colName := range cols {
-			m[colName] = columns[i]
-		}
-		results = append(results, m)
+func GetReservations() ([]Reservation, error) {
+	var reservations []Reservation
+	if err := DB.Find(&reservations).Error; err != nil {
+		return nil, err
 	}
-	return results, nil
+	return reservations, nil
 }
 
 func SaveRoom(id string, num int, roomType string, price float64, desc, equip, status, cleaningStatus string) error {
-	now := time.Now().Unix()
-	_, err := DB.Exec("INSERT OR REPLACE INTO rooms (id, numero, type, prix, description, equipements, statut, cleaning_status, synced, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", id, num, roomType, price, desc, equip, status, cleaningStatus, 0, now, now)
-	return err
+	room := Room{
+		ID:             id,
+		Numero:         num,
+		Type:           roomType,
+		Prix:           price,
+		Description:    desc,
+		Equipements:    equip,
+		Statut:         status,
+		CleaningStatus: cleaningStatus,
+	}
+	return DB.Save(&room).Error
 }
 
-func SaveReservation(id, userId, roomId, start, end string, amount float64, status string) error {
-	now := time.Now().Unix()
-	_, err := DB.Exec("INSERT OR REPLACE INTO reservations (id, user_id, chambre_id, date_debut, date_fin, montant, statut, synced, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", id, userId, roomId, start, end, amount, status, 0, now, now)
-	return err
+func SaveReservation(id, userID, chambreID, dateDebut, dateFin string, montant float64, statut string) error {
+	res := Reservation{
+		ID:        id,
+		UserID:    userID,
+		ChambreID: chambreID,
+		DateDebut: dateDebut,
+		DateFin:   dateFin,
+		Montant:   montant,
+		Statut:    statut,
+	}
+	return DB.Save(&res).Error
 }
 
-func MarkSynced(table, id string) error {
-	query := fmt.Sprintf("UPDATE %s SET synced = 1 WHERE id = ?", table)
-	_, err := DB.Exec(query, id)
-	return err
+func MarkSynced(table string, id string) error {
+	return DB.Table(table).Where("id = ?", id).Update("synced", true).Error
 }
 
-func GetUnsynced(table string) ([]map[string]interface{}, error) {
-	rows, err := DB.Query(fmt.Sprintf("SELECT * FROM %s WHERE synced = 0", table))
-	if err != nil {
+func GetUnsynced(table string) ([]Reservation, error) {
+	var reservations []Reservation
+	if err := DB.Table(table).Where("synced = ?", false).Find(&reservations).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var results []map[string]interface{}
-	cols, _ := rows.Columns()
-	for rows.Next() {
-		columns := make([]interface{}, len(cols))
-		columnPointers := make([]interface{}, len(cols))
-		for i := range columns {
-			columnPointers[i] = &columns[i]
-		}
-
-		if err := rows.Scan(columnPointers...); err != nil {
-			return nil, err
-		}
-
-		m := make(map[string]interface{})
-		for i, colName := range cols {
-			m[colName] = columns[i]
-		}
-		results = append(results, m)
-	}
-	return results, nil
+	return reservations, nil
 }

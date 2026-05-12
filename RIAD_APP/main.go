@@ -4,7 +4,8 @@ import (
 	"context"
 	"embed"
 	_ "embed"
-	"log"
+	"log/slog"
+	"os"
 	"time"
 
 	"RIAD_APP/internal/db"
@@ -30,8 +31,11 @@ func init() {
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
 // logs any error that might occur.
 func main() {
+	slogger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
 	if err := db.InitDB(db.GetDBPath()); err != nil {
-		log.Fatal(err)
+		slogger.Error("db init failed", "error", err)
+		os.Exit(1)
 	}
 
 	riadService := NewRiadService()
@@ -87,8 +91,8 @@ func main() {
 	// Run the application. This blocks until the application has been exited.
 	err := app.Run()
 
-	// If an error occurred while running the application, log it and exit.
 	if err != nil {
-		log.Fatal(err)
+		slogger.Error("app run failed", "error", err)
+		os.Exit(1)
 	}
 }

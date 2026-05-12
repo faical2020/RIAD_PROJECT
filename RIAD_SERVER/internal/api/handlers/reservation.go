@@ -8,6 +8,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func GetMyReservations(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	reservations, err := logic.GetReservationsByUser(db.GetDB(), userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, reservations)
+}
+
 func GetReservations(c *gin.Context) {
 	reservations, err := logic.GetReservations(db.GetDB())
 	if err != nil {

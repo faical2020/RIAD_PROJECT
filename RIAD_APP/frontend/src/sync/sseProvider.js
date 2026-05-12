@@ -14,7 +14,7 @@ export const sseProvider = {
         console.log('[Sync] 🌐 Web Mode: Initializing SSE stream...');
         
         const token = localStorage.getItem('token');
-        if (!token) {
+        if (!token || token === 'undefined' || token === 'null') {
             console.warn('[Sync] No token found in localStorage, SSE not started.');
             return;
         }
@@ -31,6 +31,7 @@ export const sseProvider = {
                 const data = JSON.parse(event.data);
                 if (data.type === 'ROOM_UPDATED') debouncedRooms();
                 else if (data.type === 'RESERVATION_UPDATED') debouncedReservations();
+                else if (data.type === 'CONSOMMATION_UPDATED') debouncedReservations();
             } catch (e) {
                 console.error('[Sync] SSE Parse error:', e);
             }

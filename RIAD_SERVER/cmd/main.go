@@ -1,38 +1,56 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net"
 	"os"
 
 	"RIAD_SERVER/internal/api"
+	"RIAD_SERVER/internal/api/handlers"
 	"RIAD_SERVER/internal/db"
+	"RIAD_SERVER/internal/logic"
 	"RIAD_SERVER/internal/sync"
 	pb "github.com/anomalyco/riad_project/proto/sync"
 	"google.golang.org/grpc"
 )
 
 func main() {
+	slogger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	if err := logic.InitKeys(); err != nil {
+		slogger.Error("failed to init RSA keys", "error", err)
+		os.Exit(1)
+	}
+
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		databaseURL = "postgres://postgres:postgres@localhost:5432/riad?sslmode=disable"
 	}
 
 	if err := db.InitPostgres(databaseURL); err != nil {
-		log.Fatal("Erreur DB:", err)
+		slogger.Error("db init failed", "error", err)
+		os.Exit(1)
 	}
 
-	// Start gRPC Server for Synchronization
+	tokenStore := logic.NewRefreshTokenStore(db.GetDB())
+	if err := tokenStore.AutoMigrate(); err != nil {
+		slogger.Error("refresh token migration failed", "error", err)
+		os.Exit(1)
+	}
+	handlers.SetTokenStore(tokenStore)
+
 	go func() {
 		lis, err := net.Listen("tcp", ":50051")
 		if err != nil {
-			log.Fatalf("failed to listen: %v", err)
+			slogger.Error("gRPC listen failed", "error", err)
+			os.Exit(1)
 		}
 		grpcServer := grpc.NewServer()
 		pb.RegisterSyncServiceServer(grpcServer, sync.NewSyncServer())
-		log.Printf("gRPC Sync Server started on :50051")
+		slogger.Info("gRPC sync server started", "port", 50051)
 		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatalf("failed to serve gRPC: %v", err)
+			slogger.Error("gRPC serve failed", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -42,8 +60,9 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("Serveur REST démarré sur :%s", port)
+	slogger.Info("REST server started", "port", port)
 	if err := router.Run(":" + port); err != nil {
-		log.Fatal("Erreur serveur:", err)
+		slogger.Error("server run failed", "error", err)
+		os.Exit(1)
 	}
 }

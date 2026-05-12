@@ -95,28 +95,47 @@ func (t *Tache) BeforeCreate(tx *gorm.DB) error {
 type Service struct {
     ID          string  `json:"id" gorm:"type:uuid;primaryKey"`
     Nom         string  `json:"nom"`
+    Categorie   string  `json:"categorie" gorm:"type:varchar(50);default:'extra'"`
     Description string  `json:"description"`
     Prix        float64 `json:"prix"`
 }
 
 func (s *Service) BeforeCreate(tx *gorm.DB) error {
-    if s.ID == "" {
-        s.ID = uuid.New().String()
-    }
+    if s.ID == "" { s.ID = uuid.New().String() }
+    return nil
+}
+
+type Consommation struct {
+    ID            string  `json:"id" gorm:"type:uuid;primaryKey"`
+    ReservationID string  `json:"reservation_id" gorm:"type:uuid;index;not null"`
+    ServiceID     string  `json:"service_id" gorm:"type:uuid"`
+    Libelle       string  `json:"libelle"`
+    Quantite      int     `json:"quantite" gorm:"default:1"`
+    PrixUnitaire  float64 `json:"prix_unitaire"`
+    AjoutePar     string  `json:"ajoute_par" gorm:"type:uuid"`
+    AjouteLe      int64   `json:"ajoute_le"`
+}
+
+func (c *Consommation) BeforeCreate(tx *gorm.DB) error {
+    if c.ID == "" { c.ID = uuid.New().String() }
+    now := time.Now().Unix()
+    c.AjouteLe = now
     return nil
 }
 
 type Paiement struct {
-    ID            string `json:"id" gorm:"type:uuid;primaryKey"`
-    ReservationID string `json:"reservation_id" gorm:"type:uuid"`
+    ID            string  `json:"id" gorm:"type:uuid;primaryKey"`
+    ReservationID string  `json:"reservation_id" gorm:"type:uuid;index"`
     Montant       float64 `json:"montant"`
-    ModePaiement  string `json:"mode_paiement" gorm:"type:varchar(50)"`
-    Statut        string `json:"statut" gorm:"type:varchar(50);default:'en attente'"`
+    ModePaiement  string  `json:"mode_paiement" gorm:"type:varchar(50)"`
+    Reference     string  `json:"reference"`
+    Statut        string  `json:"statut" gorm:"type:varchar(50);default:'paye'"`
+    EncaissePar   string  `json:"encaisse_par" gorm:"type:uuid"`
+    CreeLe        int64   `json:"cree_le"`
 }
 
 func (p *Paiement) BeforeCreate(tx *gorm.DB) error {
-    if p.ID == "" {
-        p.ID = uuid.New().String()
-    }
+    if p.ID == "" { p.ID = uuid.New().String() }
+    p.CreeLe = time.Now().Unix()
     return nil
 }

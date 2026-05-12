@@ -7,9 +7,13 @@ function decodeToken(token) {
     } catch { return null }
 }
 
+function validToken(t) {
+    return t && t !== 'undefined' && t !== 'null' ? t : null
+}
+
 export const useAuthStore = defineStore('auth', {
     state: () => {
-        const token = localStorage.getItem('token') || null
+        const token = validToken(localStorage.getItem('token'))
         let user = JSON.parse(localStorage.getItem('user') || 'null')
         const role = localStorage.getItem('role') || null
 
@@ -38,16 +42,20 @@ export const useAuthStore = defineStore('auth', {
             this.error = null
             try {
                 const result = await riadService.login({ email, password })
-                this.token = result.token
+                const token = result.access_token || result.token
+                this.token = token
                 this.role = result.role
                 this.user = result.user || { email, role: result.role }
                 if (result.user) {
                     this.user = result.user
                 }
 
-                localStorage.setItem('token', result.token)
+                localStorage.setItem('token', token)
                 localStorage.setItem('role', result.role)
                 localStorage.setItem('user', JSON.stringify(this.user))
+                if (result.refresh_token) {
+                    localStorage.setItem('refresh_token', result.refresh_token)
+                }
                 return true
             } catch (e) {
                 this.error = e.message || 'Erreur de connexion'
@@ -80,6 +88,28 @@ export const useAuthStore = defineStore('auth', {
             localStorage.removeItem('token')
             localStorage.removeItem('role')
             localStorage.removeItem('user')
+            localStorage.removeItem('refresh_token')
+        },
+
+        async refreshToken() {
+            const refreshToken = localStorage.getItem('refresh_token')
+            if (!refreshToken) return false
+            try {
+                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1'}/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refresh_token: refreshToken })
+                })
+                if (!res.ok) throw new Error('refresh failed')
+                const data = await res.json()
+                this.token = data.access_token
+                localStorage.setItem('token', data.access_token)
+                localStorage.setItem('refresh_token', data.refresh_token)
+                return true
+            } catch {
+                this.logout()
+                return false
+            }
         },
     },
 })

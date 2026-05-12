@@ -19,6 +19,7 @@ export const riadService = {
     async register(userData) { return (await getService()).register(userData); },
     async getRooms() { return (await getService()).getRooms(); },
     async getReservations() { return (await getService()).getReservations(); },
+    async getMyReservations() { return (await getService()).getMyReservations(); },
     async createReservation(reservationData) { return (await getService()).createReservation(reservationData); },
     async updateReservation(reservationData) { return (await getService()).updateReservation(reservationData); },
     async updateCleaningStatus(roomId, status) { return (await getService()).updateCleaningStatus(roomId, status); },

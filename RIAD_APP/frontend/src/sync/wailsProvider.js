@@ -26,6 +26,11 @@ export const wailsProvider = {
             console.log('[Sync] Wails Event: sync:reservations', data);
             debouncedReservations();
         });
+
+        Events.On('sync:consommations', () => {
+            console.log('[Sync] Wails Event: sync:consommations');
+            debouncedReservations();
+        });
     },
     destroy() {
         // Wails events are global to the app lifetime usually, 

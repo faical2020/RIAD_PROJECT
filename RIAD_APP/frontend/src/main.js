@@ -10,9 +10,9 @@ const app = createApp(App)
 const pinia = createPinia()
 app.use(pinia)
 
-// Sync token with Go service on startup
 const syncTokenWithGo = async () => {
-    const token = localStorage.getItem('token');
+    const raw = localStorage.getItem('token');
+    const token = raw && raw !== 'undefined' && raw !== 'null' ? raw : null;
     if (token) {
         try {
             await riadService.setToken(token);

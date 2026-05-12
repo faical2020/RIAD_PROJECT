@@ -36,6 +36,14 @@ func (r *Reservation) Checkout(c *Chambre) error {
 	return nil
 }
 
+func GetReservationsByUser(db *gorm.DB, userID string) ([]Reservation, error) {
+	var reservations []Reservation
+	if err := db.Where("user_id = ?", userID).Find(&reservations).Error; err != nil {
+		return nil, err
+	}
+	return reservations, nil
+}
+
 func GetReservations(db *gorm.DB) ([]Reservation, error) {
 	var reservations []Reservation
 	if err := db.Find(&reservations).Error; err != nil {

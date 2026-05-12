@@ -13,7 +13,8 @@ export const desktopServiceProvider = {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Erreur lors de la connexion');
 
-            localStorage.setItem('token', data.token);
+            localStorage.setItem('token', data.access_token || data.token);
+            localStorage.setItem('refresh_token', data.refresh_token || '');
             localStorage.setItem('role', data.role);
             return data;
         } catch (e) {
@@ -50,6 +51,10 @@ export const desktopServiceProvider = {
             console.warn("Local reservations fetch failed", e);
             return [];
         }
+    },
+    async getMyReservations() {
+        try { return await GetLocalReservations() }
+        catch { return [] }
     },
     async createReservation(reservationData) {
         const { client_id, chambre_id, date_debut, date_fin, montant } = reservationData;

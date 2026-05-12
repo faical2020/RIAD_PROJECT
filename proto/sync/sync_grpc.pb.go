@@ -32,9 +32,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SyncServiceClient interface {
-	// Server-to-Client streaming RPC for real-time updates
 	StreamUpdates(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SyncEvent], error)
-	// Mutation RPCs (authenticated via gRPC metadata/interceptors)
 	GetChambres(ctx context.Context, in *GetChambresRequest, opts ...grpc.CallOption) (*GetChambresResponse, error)
 	CreateReservation(ctx context.Context, in *CreateReservationRequest, opts ...grpc.CallOption) (*CreateReservationResponse, error)
 	UpdateCleaningStatus(ctx context.Context, in *UpdateCleaningStatusRequest, opts ...grpc.CallOption) (*UpdateCleaningStatusResponse, error)
@@ -134,9 +132,7 @@ func (c *syncServiceClient) SyncData(ctx context.Context, in *SyncDataRequest, o
 // All implementations must embed UnimplementedSyncServiceServer
 // for forward compatibility.
 type SyncServiceServer interface {
-	// Server-to-Client streaming RPC for real-time updates
 	StreamUpdates(*SyncRequest, grpc.ServerStreamingServer[SyncEvent]) error
-	// Mutation RPCs (authenticated via gRPC metadata/interceptors)
 	GetChambres(context.Context, *GetChambresRequest) (*GetChambresResponse, error)
 	CreateReservation(context.Context, *CreateReservationRequest) (*CreateReservationResponse, error)
 	UpdateCleaningStatus(context.Context, *UpdateCleaningStatusRequest) (*UpdateCleaningStatusResponse, error)

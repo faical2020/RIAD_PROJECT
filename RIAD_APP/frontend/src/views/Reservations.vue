@@ -1,11 +1,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useRiadStore } from '../stores/riad'
 import { useAuthStore } from '../stores/auth'
 
 const riad = useRiadStore()
 const auth = useAuthStore()
+const router = useRouter()
 const searchQuery = ref('')
+
+function goConsommations(id) { router.push(`/app/consommations/${id}`) }
+function goFacture(id) { router.push(`/app/facture/${id}`) }
 
 onMounted(() => riad.fetchReservations())
 
@@ -62,7 +67,11 @@ function statutBadge(s) {
               <p class="text-sm font-semibold text-riad-800">{{ r.date_debut }} → {{ r.date_fin }}</p>
               <p class="text-xs text-riad-400 mt-0.5">{{ r.montant }} MAD</p>
             </div>
-            <span :class="statutBadge(r.statut)">{{ r.statut }}</span>
+            <div class="flex items-center gap-2">
+              <span :class="statutBadge(r.statut)">{{ r.statut }}</span>
+              <button @click="goConsommations(r.id)" class="p-1.5 rounded-lg hover:bg-white transition-colors text-xs" title="Consommations">🍽️</button>
+              <button @click="goFacture(r.id)" class="p-1.5 rounded-lg hover:bg-white transition-colors text-xs" title="Facture">🧾</button>
+            </div>
           </div>
         </div>
       </div>
@@ -79,7 +88,11 @@ function statutBadge(s) {
               <p class="text-sm font-semibold text-riad-800">{{ r.date_debut }} → {{ r.date_fin }}</p>
               <p class="text-xs text-riad-400 mt-0.5">{{ r.montant }} MAD</p>
             </div>
-            <span :class="statutBadge(r.statut)">{{ r.statut }}</span>
+            <div class="flex items-center gap-2">
+              <span :class="statutBadge(r.statut)">{{ r.statut }}</span>
+              <button @click="goConsommations(r.id)" class="p-1.5 rounded-lg hover:bg-white transition-colors text-xs" title="Consommations">🍽️</button>
+              <button @click="goFacture(r.id)" class="p-1.5 rounded-lg hover:bg-white transition-colors text-xs" title="Facture">🧾</button>
+            </div>
           </div>
         </div>
       </div>
@@ -96,7 +109,11 @@ function statutBadge(s) {
               <p class="text-sm font-semibold text-riad-800">{{ r.date_debut }} → {{ r.date_fin }}</p>
               <p class="text-xs text-riad-400 mt-0.5">{{ r.montant }} MAD</p>
             </div>
-            <span :class="statutBadge(r.statut)">{{ r.statut }}</span>
+            <div class="flex items-center gap-2">
+              <span :class="statutBadge(r.statut)">{{ r.statut }}</span>
+              <button @click="goConsommations(r.id)" class="p-1.5 rounded-lg hover:bg-white transition-colors text-xs" title="Consommations">🍽️</button>
+              <button @click="goFacture(r.id)" class="p-1.5 rounded-lg hover:bg-white transition-colors text-xs" title="Facture">🧾</button>
+            </div>
           </div>
         </div>
       </div>
