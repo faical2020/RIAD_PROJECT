@@ -2,16 +2,12 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
+
 	"RIAD_SERVER/internal/db"
 	"RIAD_SERVER/internal/logic"
-	"strconv"
 	"github.com/gin-gonic/gin"
 )
-
-type SyncResponse struct {
-	Chambres     []logic.Chambre     `json:"chambres"`
-	Reservations []logic.Reservation `json:"reservations"`
-}
 
 func SyncHandler(c *gin.Context) {
 	sinceStr := c.Query("since")
@@ -23,14 +19,11 @@ func SyncHandler(c *gin.Context) {
 		}
 	}
 
-	var chambres []logic.Chambre
-	db.GetDB().Where("updated_at > ?", since).Find(&chambres)
+	data, err := logic.GetSyncUpdates(db.GetDB(), since)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-	var reservations []logic.Reservation
-	db.GetDB().Where("updated_at > ?", since).Find(&reservations)
-
-	c.JSON(http.StatusOK, SyncResponse{
-		Chambres:     chambres,
-		Reservations: reservations,
-	})
+	c.JSON(http.StatusOK, data)
 }

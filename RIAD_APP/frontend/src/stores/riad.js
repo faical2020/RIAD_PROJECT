@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { riadService } from '../services/serviceBridge'
 
+let _lastRoomsFetch = 0
+let _lastReservationsFetch = 0
+
 export const useRiadStore = defineStore('riad', {
     state: () => ({
         chambres: [],
@@ -28,6 +31,9 @@ export const useRiadStore = defineStore('riad', {
 
     actions: {
         async fetchChambres() {
+            const now = Date.now()
+            if (now - _lastRoomsFetch < 1000) return
+            _lastRoomsFetch = now
             console.log('[Store] fetchChambres called');
             this.loading = true
             try {
@@ -46,6 +52,9 @@ export const useRiadStore = defineStore('riad', {
         },
 
         async fetchReservations() {
+            const now = Date.now()
+            if (now - _lastReservationsFetch < 1000) return
+            _lastReservationsFetch = now
             try {
                 this.reservations = await riadService.getReservations()
             } catch (e) {

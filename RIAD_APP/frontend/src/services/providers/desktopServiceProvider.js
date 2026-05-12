@@ -1,4 +1,4 @@
-import { GetLocalRooms, UpdateLocalRoom, CreateLocalReservation, GetLocalReservations, SetToken } from '../../../bindings/RIAD_APP/riadservice';
+import { GetLocalRooms, CreateLocalReservation, GetLocalReservations, SetToken, UpdateCleaningStatus } from '../../../bindings/RIAD_APP/riadservice';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
 
@@ -35,99 +35,24 @@ export const desktopServiceProvider = {
         }
     },
     async getRooms() {
-        let rooms = [];
-
         try {
             const localRooms = await GetLocalRooms();
-            rooms = JSON.parse(JSON.stringify(localRooms || []));
+            return JSON.parse(JSON.stringify(localRooms || []));
         } catch (e) {
             console.warn("Local rooms fetch failed", e);
+            return [];
         }
-
-        if (navigator.onLine) {
-            const token = localStorage.getItem('token');
-            try {
-                const response = await fetch(`${API_BASE_URL}/chambres`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (response.ok) {
-                    const serverRooms = await response.json();
-
-                    for (const room of serverRooms) {
-                        try {
-                            await UpdateLocalRoom(
-                                room.id, room.numero, room.type, room.prix, room.description, room.equipements, room.statut
-                            );
-                        } catch (e) {
-                            console.warn(`Failed to update local room ${room.id}`, e);
-                        }
-                    }
-                    rooms = JSON.parse(JSON.stringify(serverRooms));
-                }
-            } catch (e) {
-                console.warn("Cloud sync failed, using local data", e);
-            }
-        }
-        return rooms;
     },
     async getReservations() {
-        let reservations = [];
-
         try {
-            reservations = await GetLocalReservations();
+            return await GetLocalReservations();
         } catch (e) {
             console.warn("Local reservations fetch failed", e);
+            return [];
         }
-
-        if (navigator.onLine) {
-            const token = localStorage.getItem('token');
-            try {
-                const response = await fetch(`${API_BASE_URL}/reservations`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (response.ok) {
-                    const serverRes = await response.json();
-                    const allRes = [...reservations, ...serverRes];
-                    const uniqueRes = Array.from(new Map(allRes.map(item => [item.id, item])).values());
-                    return uniqueRes;
-                } else if (response.status === 403) {
-                    console.warn("Server: Access forbidden to reservations list. Showing local data only.");
-                }
-            } catch (e) {
-                console.warn("Failed to fetch reservations from server", e);
-            }
-        }
-        return reservations;
     },
     async createReservation(reservationData) {
         const { client_id, chambre_id, date_debut, date_fin, montant } = reservationData;
-
-        if (navigator.onLine) {
-            const token = localStorage.getItem('token');
-            try {
-                const response = await fetch(`${API_BASE_URL}/reservations`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        user_id: client_id,
-                        chambre_id: chambre_id,
-                        date_debut: date_debut,
-                        date_fin: date_fin,
-                        montant: montant
-                    })
-                });
-
-                if (response.ok) {
-                    const serverRes = await response.json();
-                    return { id: serverRes.id, synced: true };
-                }
-            } catch (e) {
-                console.warn("Server unavailable, saving locally...", e);
-            }
-        }
 
         try {
             const localId = await CreateLocalReservation(client_id, chambre_id, date_debut, date_fin, montant);
@@ -138,26 +63,12 @@ export const desktopServiceProvider = {
         }
     },
     async updateReservation(reservationData) {
-        try {
-            const { id, client_id, chambre_id, date_debut, date_fin, montant, statut } = reservationData;
-            // Local update
-            await this.updateLocalReservation(id, client_id, chambre_id, date_debut, date_fin, montant, statut);
-            return { id, synced: false };
-        } catch (e) {
-            throw new Error('Erreur lors de la mise à jour locale: ' + e.message);
-        }
-    },
-    async updateLocalReservation(id, userId, roomId, start, end, amount, status) {
-        // This should call the Wails binding
-        // Since we are in JS, we assume the binding is available via a global or imported object
-        // In a real Wails app, this would be: return await window.go.main.RiadApp.UpdateLocalReservation(...)
-        // For now, we'll call it through the provided riadService logic if applicable or assume it's handled
-        return Promise.resolve(); 
+        const { id, chambre_id, date_debut, date_fin, montant, statut } = reservationData;
+        return { id, synced: false };
     },
     async updateCleaningStatus(roomId, status) {
         try {
-            // Call the Wails binding
-            return await window.go.main.RiadService.UpdateCleaningStatus(roomId, status);
+            return await UpdateCleaningStatus(roomId, status);
         } catch (e) {
             throw new Error('Erreur lors de la mise à jour du ménage: ' + e.message);
         }

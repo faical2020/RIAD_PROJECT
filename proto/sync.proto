@@ -4,7 +4,7 @@ package riad.sync;
 
 option go_package = "github.com/anomalyco/riad_project/proto/sync";
 
-// Representation of a Room update
+// Representation of a Room
 message Room {
     string id = 1;
     int32 number = 2;
@@ -16,7 +16,7 @@ message Room {
     string cleaning_status = 8;
 }
 
-// Representation of a Reservation update
+// Representation of a Reservation
 message Reservation {
     string id = 1;
     string user_id = 2;
@@ -35,15 +35,15 @@ message SyncEvent {
         ROOM_DELETED = 2;
         RESERVATION_DELETED = 3;
     }
-    
+
     EventType type = 1;
     string entity_id = 2;
-    
+
     oneof data {
         Room room = 3;
         Reservation reservation = 4;
     }
-    
+
     int64 sequence_id = 5;
 }
 
@@ -53,7 +53,64 @@ message SyncRequest {
     int64 last_sequence_id = 2;
 }
 
+// --- Mutation messages ---
+
+message GetChambresRequest {}
+message GetChambresResponse {
+    repeated Room rooms = 1;
+}
+
+message CreateReservationRequest {
+    string user_id = 1;
+    string room_id = 2;
+    string start_date = 3;
+    string end_date = 4;
+    double amount = 5;
+}
+message CreateReservationResponse {
+    string id = 1;
+    string status = 2;
+}
+
+message UpdateCleaningStatusRequest {
+    string room_id = 1;
+    string cleaning_status = 2;
+}
+message UpdateCleaningStatusResponse {
+    Room room = 1;
+}
+
+message CheckinRequest {
+    string reservation_id = 1;
+}
+message CheckinResponse {
+    Reservation reservation = 1;
+}
+
+message CheckoutRequest {
+    string reservation_id = 1;
+}
+message CheckoutResponse {
+    Reservation reservation = 1;
+}
+
+message SyncDataRequest {
+    int64 last_sequence_id = 1;
+}
+message SyncDataResponse {
+    repeated Room rooms = 1;
+    repeated Reservation reservations = 2;
+}
+
 service SyncService {
     // Server-to-Client streaming RPC for real-time updates
     rpc StreamUpdates(SyncRequest) returns (stream SyncEvent);
+
+    // Mutation RPCs (authenticated via gRPC metadata/interceptors)
+    rpc GetChambres(GetChambresRequest) returns (GetChambresResponse);
+    rpc CreateReservation(CreateReservationRequest) returns (CreateReservationResponse);
+    rpc UpdateCleaningStatus(UpdateCleaningStatusRequest) returns (UpdateCleaningStatusResponse);
+    rpc Checkin(CheckinRequest) returns (CheckinResponse);
+    rpc Checkout(CheckoutRequest) returns (CheckoutResponse);
+    rpc SyncData(SyncDataRequest) returns (SyncDataResponse);
 }

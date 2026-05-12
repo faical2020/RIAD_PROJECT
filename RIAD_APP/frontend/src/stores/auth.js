@@ -1,14 +1,29 @@
 import { defineStore } from 'pinia'
 import { riadService } from '../services/serviceBridge'
 
+function decodeToken(token) {
+    try {
+        return JSON.parse(atob(token.split('.')[1]))
+    } catch { return null }
+}
+
 export const useAuthStore = defineStore('auth', {
-    state: () => ({
-        user: JSON.parse(localStorage.getItem('user') || 'null'),
-        token: localStorage.getItem('token') || null,
-        role: localStorage.getItem('role') || null,
-        loading: false,
-        error: null,
-    }),
+    state: () => {
+        const token = localStorage.getItem('token') || null
+        let user = JSON.parse(localStorage.getItem('user') || 'null')
+        const role = localStorage.getItem('role') || null
+
+        if (token && (!user || !user.id)) {
+            const payload = decodeToken(token)
+            if (payload && payload.user_id) {
+                if (!user) user = { id: payload.user_id, role: payload.role }
+                else user.id = payload.user_id
+                localStorage.setItem('user', JSON.stringify(user))
+            }
+        }
+
+        return { user, token, role, loading: false, error: null }
+    },
 
     getters: {
         isAuthenticated: (state) => !!state.token,

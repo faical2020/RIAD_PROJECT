@@ -1,14 +1,15 @@
 package tests
 
 import (
+	"os"
 	"testing"
+	"time"
+
 	"RIAD_APP/internal/db"
 	"RIAD_APP/pkg/logic"
-	"os"
 )
 
 func TestHybridLogic(t *testing.T) {
-	// Setup temporary DB
 	dbPath := "test_riad.db"
 	err := db.InitDB(dbPath)
 	if err != nil {
@@ -22,15 +23,69 @@ func TestHybridLogic(t *testing.T) {
 			t.Errorf("Expected valid room to pass, got: %v", err)
 		}
 
-		invalidRoom := logic.Room{Number: -1, Price: 1500}
+		invalidRoom := logic.Room{Number: 0, Price: 1500}
 		if err := logic.ValidateRoom(invalidRoom); err == nil {
-			t.Error("Expected invalid room number to fail")
+			t.Error("Expected invalid room number (0) to fail")
+		}
+
+		invalidPrice := logic.Room{Number: 101, Price: -100}
+		if err := logic.ValidateRoom(invalidPrice); err == nil {
+			t.Error("Expected negative price to fail")
+		}
+	})
+
+	t.Run("ValidateReservation", func(t *testing.T) {
+		start := time.Now()
+		end := start.Add(48 * time.Hour)
+
+		validRes := logic.Reservation{
+			UserID:    "user-1",
+			RoomID:    "room-1",
+			StartDate: start,
+			EndDate:   end,
+			Amount:    1500,
+		}
+		if err := logic.ValidateReservation(validRes, nil); err != nil {
+			t.Errorf("Expected valid reservation to pass, got: %v", err)
+		}
+
+		invalidDates := logic.Reservation{
+			UserID:    "user-1",
+			RoomID:    "room-1",
+			StartDate: end,
+			EndDate:   start,
+			Amount:    1500,
+		}
+		if err := logic.ValidateReservation(invalidDates, nil); err == nil {
+			t.Error("Expected reservation with inverted dates to fail")
+		}
+
+		missingUser := logic.Reservation{
+			UserID:    "",
+			RoomID:    "room-1",
+			StartDate: start,
+			EndDate:   end,
+			Amount:    1500,
+		}
+		if err := logic.ValidateReservation(missingUser, nil); err == nil {
+			t.Error("Expected reservation with empty UserID to fail")
+		}
+
+		negativeAmount := logic.Reservation{
+			UserID:    "user-1",
+			RoomID:    "room-1",
+			StartDate: start,
+			EndDate:   end,
+			Amount:    -500,
+		}
+		if err := logic.ValidateReservation(negativeAmount, nil); err == nil {
+			t.Error("Expected reservation with negative amount to fail")
 		}
 	})
 
 	t.Run("LocalPersistence", func(t *testing.T) {
 		roomID := "room-1"
-		err := db.SaveRoom(roomID, 101, "Double", 1500.0, "Desc", "Wifi", "libre")
+		err := db.SaveRoom(roomID, 101, "Double", 1500.0, "Desc", "Wifi", "libre", "propre")
 		if err != nil {
 			t.Fatalf("Failed to save room: %v", err)
 		}

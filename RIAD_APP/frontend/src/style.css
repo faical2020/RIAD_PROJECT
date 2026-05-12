@@ -1,45 +1,92 @@
-@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Amiri:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl shadow-glass;
-  }
-  .card {
-    @apply bg-white rounded-2xl border border-riad-100 shadow-lux hover:shadow-xl transition-all duration-300;
-  }
-  .badge {
-    @apply px-2.5 py-0.5 text-xs font-bold rounded-full tracking-wide;
-  }
-  .sidebar-link {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-riad-400 hover:bg-riad-800 hover:text-riad-200 transition-all duration-300 text-sm font-medium relative overflow-hidden;
-  }
-  .sidebar-link.active {
-    @apply bg-gradient-to-r from-gold-500/20 to-gold-500/5 text-gold-400 border-r-2 border-gold-500;
-  }
-  .sidebar-link::before {
-    content: '';
-    @apply absolute inset-0 bg-gradient-to-r from-gold-500/0 via-gold-500/10 to-gold-500/0 opacity-0 transition-opacity duration-500;
-  }
-  .sidebar-link:hover::before {
-    @apply opacity-100;
-  }
-  .ornament {
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4c8a4' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    animation: ornament-float 20s linear infinite;
-  }
-  .glass-header {
-    @apply bg-riad-950/80 backdrop-blur-md border-b border-riad-800/50;
-  }
-  .input-lux {
-    @apply w-full bg-riad-800/50 border border-riad-700/50 rounded-xl px-4 py-2.5 text-white placeholder-riad-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500/50 transition-all duration-300;
-  }
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { @apply bg-riad-50 text-riad-900 antialiased; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
 }
 
-@keyframes ornament-float {
-  0% { background-position: 0% 0%; }
-  100% { background-position: 100% 100%; }
+@layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-glass;
+  }
+  .glass-dark {
+    @apply bg-riad-950/60 backdrop-blur-xl border border-riad-800/30 shadow-glass;
+  }
+  .card {
+    @apply bg-white rounded-2xl border border-riad-100 shadow-sm hover:shadow-lg hover:border-riad-200 transition-all duration-300;
+  }
+  .card-dark {
+    @apply bg-riad-900/50 backdrop-blur-sm rounded-2xl border border-riad-700/30 shadow-glass;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-semibold rounded-full;
+  }
+  .badge-green { @apply badge bg-green-50 text-green-700 border border-green-200; }
+  .badge-red { @apply badge bg-red-50 text-red-700 border border-red-200; }
+  .badge-amber { @apply badge bg-amber-50 text-amber-700 border border-amber-200; }
+  .badge-blue { @apply badge bg-blue-50 text-blue-700 border border-blue-200; }
+  .badge-gray { @apply badge bg-riad-100 text-riad-600 border border-riad-200; }
+  .badge-gold { @apply badge bg-gold-50 text-gold-700 border border-gold-200; }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-gold-500 to-gold-400 text-riad-950 hover:from-gold-400 hover:to-gold-300 shadow-lg shadow-gold-500/20 hover:shadow-xl hover:shadow-gold-500/30;
+  }
+  .btn-ghost {
+    @apply btn text-riad-600 hover:bg-riad-100 hover:text-riad-900;
+  }
+  .btn-danger {
+    @apply btn bg-red-50 text-red-600 border border-red-200 hover:bg-red-500 hover:text-white;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs rounded-lg;
+  }
+
+  .input {
+    @apply w-full bg-white border border-riad-200 rounded-xl px-4 py-2.5 text-riad-900 placeholder:text-riad-400 focus:outline-none focus:ring-2 focus:ring-gold-500/30 focus:border-gold-500/50 transition-all duration-200;
+  }
+  .input-dark {
+    @apply w-full bg-riad-800/50 border border-riad-700/50 rounded-xl px-4 py-2.5 text-white placeholder:text-riad-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500/50 transition-all duration-200;
+  }
+  .select {
+    @apply input appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22%236b7280%22%3E%3Cpath%20fill-rule%3D%22evenodd%22%20d%3D%22M5.23%207.21a.75.75%200%20011.06.02L10%2011.168l3.71-3.938a.75.75%200%20111.08%201.04l-4.25%204.5a.75.75%200%2001-1.08%200l-4.25-4.5a.75.75%200%2001.02-1.06z%22%20clip-rule%3D%22evenodd%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.25rem_1.25rem] bg-[right_0.75rem_center] bg-no-repeat pr-10;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-riad-400 hover:text-white hover:bg-white/5 transition-all duration-200 text-sm font-medium relative;
+  }
+  .sidebar-link.active {
+    @apply bg-gradient-to-r from-gold-500/20 to-gold-500/5 text-gold-400;
+  }
+  .sidebar-link.active::after {
+    content: '';
+    @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gold-500 rounded-r-full;
+  }
+
+  .nav-link {
+    @apply flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-riad-400 transition-all duration-200 text-[10px] font-medium;
+  }
+  .nav-link.active {
+    @apply text-gold-500;
+  }
+  .nav-link.active .nav-icon {
+    @apply bg-gold-500/15 text-gold-500;
+  }
+  .nav-icon {
+    @apply w-9 h-9 rounded-xl bg-riad-100 flex items-center justify-center text-lg transition-all duration-200;
+  }
+
+  .animate-in {
+    animation: animate-in 0.2s ease-out;
+  }
+  @keyframes animate-in {
+    from { opacity: 0; transform: scale(0.95) translateY(4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
 }

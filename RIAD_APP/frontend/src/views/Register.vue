@@ -20,81 +20,91 @@ async function handleRegister() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-riad-950 ornament flex items-center justify-center p-4 sm:p-6 lg:p-8">
-    <div class="absolute inset-0 overflow-hidden pointer-events-none">
-      <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-gold-500/5 blur-3xl animate-float"></div>
+  <div class="min-h-screen flex">
+    <!-- Left Panel - Branding -->
+    <div class="hidden lg:flex lg:w-1/2 bg-riad-950 relative overflow-hidden items-center justify-center p-12">
+      <div class="absolute inset-0">
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-gold-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-64 h-64 bg-riad-700/20 rounded-full blur-3xl"></div>
+      </div>
+      <div class="relative text-center max-w-md">
+        <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-gold-500/20 to-gold-600/10 border border-gold-500/30 mb-6 shadow-lg shadow-gold-500/10">
+          <span class="text-4xl">🌙</span>
+        </div>
+        <h1 class="font-display text-4xl text-gold-300 mb-3">Riad Manager</h1>
+        <p class="text-riad-400 text-lg leading-relaxed">Créez votre compte et rejoignez notre établissement</p>
+        <p class="font-arabic text-riad-600 text-base mt-4">مرحباً بكم في فريقنا</p>
+      </div>
     </div>
 
-    <div class="relative w-full max-w-sm sm:max-w-md">
-      <div class="text-center mb-6 sm:mb-8">
-        <div class="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-gold-500/30 to-gold-600/20 border border-gold-500/30 mb-4 shadow-lg shadow-gold-500/10">
-          <span class="text-2xl sm:text-3xl">🌙</span>
+    <!-- Right Panel -->
+    <div class="flex-1 flex items-center justify-center p-4 sm:p-8 lg:p-12 bg-gradient-to-br from-riad-50 to-white">
+      <div class="w-full max-w-sm animate-in">
+        <div class="text-center lg:hidden mb-8">
+          <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-gold-500/30 to-gold-600/20 border border-gold-500/30 mb-4 shadow-lg shadow-gold-500/10">
+            <span class="text-3xl">🌙</span>
+          </div>
+          <h1 class="font-display text-2xl text-riad-900 mb-1">Riad Manager</h1>
         </div>
-        <h1 class="font-display text-2xl sm:text-3xl text-gold-300">Riad Manager</h1>
-      </div>
 
-      <div class="glass-card border-riad-700/50 p-6 sm:p-8">
-        <h2 class="font-display text-xl sm:text-2xl text-white mb-6">Créer un compte</h2>
+        <h2 class="text-2xl font-bold text-riad-900 mb-1">Créer un compte</h2>
+        <p class="text-riad-400 text-sm mb-8">Inscrivez-vous pour commencer</p>
 
-        <div v-if="authStore.error" class="mb-4 p-3 bg-terracotta-600/20 border border-terracotta-400/40 rounded-xl text-terracotta-400 text-sm backdrop-blur-sm">
+        <div v-if="authStore.error" class="mb-6 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
           {{ authStore.error }}
         </div>
-        <div v-if="success" class="mb-4 p-3 bg-green-900/30 border border-green-500/40 rounded-xl text-green-400 text-sm">
-          ✅ Compte créé ! Vous pouvez vous connecter.
+        <div v-if="success" class="mb-6 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Compte créé ! Vous pouvez vous connecter.
         </div>
 
-        <div class="space-y-4">
+        <form @submit.prevent="handleRegister" class="space-y-4">
           <div class="grid grid-cols-2 gap-3">
-            <div class="group">
-              <label class="block text-riad-300 text-sm font-bold mb-1.5">Prénom</label>
-              <input v-model="form.prenom" type="text" placeholder="Mohammed"
-                class="input-lux group-hover:border-riad-600/70" />
+            <div>
+              <label class="block text-sm font-semibold text-riad-700 mb-1.5">Prénom</label>
+              <input v-model="form.prenom" type="text" placeholder="Mohammed" class="input" />
             </div>
-            <div class="group">
-              <label class="block text-riad-300 text-sm font-bold mb-1.5">Nom</label>
-              <input v-model="form.nom" type="text" placeholder="Alaoui"
-                class="input-lux group-hover:border-riad-600/70" />
+            <div>
+              <label class="block text-sm font-semibold text-riad-700 mb-1.5">Nom</label>
+              <input v-model="form.nom" type="text" placeholder="Alaoui" class="input" />
             </div>
           </div>
-          <div class="group">
-            <label class="block text-riad-300 text-sm font-bold mb-1.5">Email</label>
-            <input v-model="form.email" type="email" placeholder="user@riad.ma"
-              class="input-lux group-hover:border-riad-600/70" />
+          <div>
+            <label class="block text-sm font-semibold text-riad-700 mb-1.5">Email</label>
+            <input v-model="form.email" type="email" placeholder="vous@exemple.com" class="input" />
           </div>
-          <div class="group">
-            <label class="block text-riad-300 text-sm font-bold mb-1.5">Téléphone</label>
-            <input v-model="form.telephone" type="tel" placeholder="0612345678"
-              class="input-lux group-hover:border-riad-600/70" />
+          <div>
+            <label class="block text-sm font-semibold text-riad-700 mb-1.5">Téléphone</label>
+            <input v-model="form.telephone" type="tel" placeholder="0612345678" class="input" />
           </div>
-          <div class="group">
-            <label class="block text-riad-300 text-sm font-bold mb-1.5">Mot de passe</label>
-            <input v-model="form.password" type="password" placeholder="••••••••"
-              class="input-lux group-hover:border-riad-600/70" />
+          <div>
+            <label class="block text-sm font-semibold text-riad-700 mb-1.5">Mot de passe</label>
+            <input v-model="form.password" type="password" placeholder="••••••••" class="input" />
           </div>
-          <div class="group">
-            <label class="block text-riad-300 text-sm font-bold mb-1.5">Rôle</label>
-            <select v-model="form.role"
-              class="input-lux group-hover:border-riad-600/70">
+          <div>
+            <label class="block text-sm font-semibold text-riad-700 mb-1.5">Rôle</label>
+            <select v-model="form.role" class="select">
               <option value="client">Client</option>
               <option value="employe">Employé</option>
               <option value="receptionniste">Réceptionniste</option>
               <option value="manager">Manager</option>
             </select>
           </div>
-        </div>
 
-        <button @click="handleRegister" :disabled="authStore.loading"
-          class="mt-6 w-full bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-400 hover:to-gold-300 disabled:opacity-50 text-riad-950 font-body font-bold py-3 sm:py-3.5 rounded-xl transition-all duration-300 shadow-lg shadow-gold-500/20 hover:shadow-xl hover:shadow-gold-500/30 active:scale-[0.98]">
-          <span v-if="authStore.loading" class="flex items-center justify-center gap-2">
-            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-riad-950"></div>
-            Création...
-          </span>
-          <span v-else>Créer le compte</span>
-        </button>
+          <button type="submit" :disabled="authStore.loading"
+            class="btn-primary w-full py-3 mt-2">
+            <span v-if="authStore.loading" class="flex items-center gap-2">
+              <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              Création...
+            </span>
+            <span v-else>Créer le compte</span>
+          </button>
+        </form>
 
-        <p class="mt-4 sm:mt-6 text-center text-riad-400 text-sm">
+        <p class="mt-6 text-center text-sm text-riad-500">
           Déjà un compte ?
-          <RouterLink to="/login" class="text-gold-400 hover:text-gold-300 font-bold transition-colors inline-block hover:translate-x-1">Se connecter →</RouterLink>
+          <RouterLink to="/login" class="text-gold-600 hover:text-gold-700 font-semibold">Se connecter</RouterLink>
         </p>
       </div>
     </div>

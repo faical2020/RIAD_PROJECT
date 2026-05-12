@@ -1,13 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
@@ -18,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 var debugLog *log.Logger
@@ -32,11 +29,13 @@ func init() {
 }
 
 type RiadService struct {
-	ctx                context.Context
-	token              string
-	apiBaseURL         string
-	app                *application.App // Reference to the Wails app for emitting events
-	lastSyncTimestamp  int64
+	ctx               context.Context
+	token             string
+	apiBaseURL        string
+	app               *application.App
+	grpcConn          *grpc.ClientConn
+	grpcClient        pb.SyncServiceClient
+	lastSyncTimestamp int64
 }
 
 func NewRiadService() *RiadService {
@@ -49,23 +48,10 @@ func (s *RiadService) SetApp(app *application.App) {
 	s.app = app
 }
 
-func (s *RiadService) SetToken(token string) {
-	s.token = token
-	if debugLog != nil {
-		debugLog.Printf("SetToken called: token received (length: %d)\n", len(token))
-	}
-	// Trigger immediate sync when token is set
-	go s.performSync()
-	// Start the real-time gRPC stream
-	go s.startGRPCStream()
-}
-
-func (s *RiadService) startGRPCStream() {
-	if s.token == "" {
+func (s *RiadService) dialGRPC() {
+	if s.grpcConn != nil {
 		return
 	}
-
-	// Connection settings
 	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		if debugLog != nil {
@@ -73,9 +59,32 @@ func (s *RiadService) startGRPCStream() {
 		}
 		return
 	}
-	defer conn.Close()
+	s.grpcConn = conn
+	s.grpcClient = pb.NewSyncServiceClient(conn)
+	if debugLog != nil {
+		debugLog.Println("gRPC client created successfully")
+	}
+}
 
-	client := pb.NewSyncServiceClient(conn)
+func (s *RiadService) grpcCtx() context.Context {
+	md := metadata.Pairs("authorization", "Bearer "+s.token)
+	return metadata.NewOutgoingContext(context.Background(), md)
+}
+
+func (s *RiadService) SetToken(token string) {
+	s.token = token
+	if debugLog != nil {
+		debugLog.Printf("SetToken called: token received (length: %d)\n", len(token))
+	}
+	s.dialGRPC()
+	go s.performSync()
+	go s.startGRPCStream()
+}
+
+func (s *RiadService) startGRPCStream() {
+	if s.token == "" || s.grpcClient == nil {
+		return
+	}
 
 	for {
 		select {
@@ -86,7 +95,7 @@ func (s *RiadService) startGRPCStream() {
 				debugLog.Println("Attempting to connect to gRPC sync stream...")
 			}
 
-			stream, err := client.StreamUpdates(s.ctx, &pb.SyncRequest{
+			stream, err := s.grpcClient.StreamUpdates(s.ctx, &pb.SyncRequest{
 				Token: s.token,
 			})
 			if err != nil {
@@ -107,9 +116,8 @@ func (s *RiadService) startGRPCStream() {
 					if debugLog != nil {
 						debugLog.Printf("gRPC stream recv error: %v. Reconnecting...\n", err)
 					}
-					break // Break inner loop to reconnect
+					break
 				}
-
 				s.handleSyncEvent(event)
 			}
 			time.Sleep(1 * time.Second)
@@ -126,8 +134,7 @@ func (s *RiadService) handleSyncEvent(event *pb.SyncEvent) {
 	case pb.SyncEvent_ROOM_UPDATED:
 		if room := event.GetRoom(); room != nil {
 			log.Printf("Updating local room %s from gRPC", room.Id)
-			// Note: CleaningStatus is not yet in the proto Room message, using default 'propre'
-			db.SaveRoom(room.Id, int(room.Number), room.Type, room.Price, room.Description, room.Equipments, room.Status, "propre")
+			db.SaveRoom(room.Id, int(room.Number), room.Type, room.Price, room.Description, room.Equipments, room.Status, room.CleaningStatus)
 			if s.app != nil {
 				log.Printf("Emitting Wails event sync:rooms for room %s", room.Id)
 				s.app.Event.Emit("sync:rooms", "updated")
@@ -163,13 +170,32 @@ func (s *RiadService) GetLocalReservations() ([]map[string]interface{}, error) {
 }
 
 func (s *RiadService) CreateLocalReservation(userID, roomID, start, end string, amount float64) (string, error) {
-	// Fetch the rooms for validation from local DB
+	if s.grpcClient != nil {
+		resp, err := s.grpcClient.CreateReservation(s.grpcCtx(), &pb.CreateReservationRequest{
+			UserId:    userID,
+			RoomId:    roomID,
+			StartDate: start,
+			EndDate:   end,
+			Amount:    amount,
+		})
+		if err == nil && resp.Id != "" {
+			if debugLog != nil {
+				debugLog.Printf("Reservation created via gRPC: id=%s\n", resp.Id)
+			}
+			db.SaveReservation(resp.Id, userID, roomID, start, end, amount, resp.Status)
+			db.MarkSynced("reservations", resp.Id)
+			return resp.Id, nil
+		}
+		if debugLog != nil {
+			debugLog.Printf("gRPC CreateReservation failed: %v. Falling back to local.\n", err)
+		}
+	}
+
 	rawRooms, err := db.GetRooms()
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch rooms for validation: %v", err)
 	}
 
-	// Convert []map[string]interface{} to []logic.Room as expected by ValidateReservation
 	var rooms []logic.Room
 	for _, r := range rawRooms {
 		rooms = append(rooms, logic.Room{
@@ -189,11 +215,10 @@ func (s *RiadService) CreateLocalReservation(userID, roomID, start, end string, 
 		RoomID:    roomID,
 		Amount:    amount,
 		Status:    "pending",
-		StartDate: time.Now(), 
-		EndDate:   time.Now(), 
+		StartDate: time.Now(),
+		EndDate:   time.Now(),
 	}
 
-	// Pass the slice of rooms
 	if err := logic.ValidateReservation(res, rooms); err != nil {
 		return "", err
 	}
@@ -261,14 +286,31 @@ func (s *RiadService) UpdateCleaningStatus(id, status string) error {
 	if debugLog != nil {
 		debugLog.Printf("UpdateCleaningStatus called: ID=%s, Status=%s\n", id, status)
 	}
-	
-	// Update local DB
-	// We need to fetch the room first to keep other fields
+
+	if s.grpcClient != nil {
+		_, err := s.grpcClient.UpdateCleaningStatus(s.grpcCtx(), &pb.UpdateCleaningStatusRequest{
+			RoomId:         id,
+			CleaningStatus: status,
+		})
+		if err == nil {
+			if debugLog != nil {
+				debugLog.Printf("Cleaning status updated via gRPC for room %s\n", id)
+			}
+			if s.app != nil {
+				s.app.Event.Emit("sync:rooms", "updated")
+			}
+			return nil
+		}
+		if debugLog != nil {
+			debugLog.Printf("gRPC UpdateCleaningStatus failed: %v. Falling back to local.\n", err)
+		}
+	}
+
 	rawRooms, err := db.GetRooms()
 	if err != nil {
 		return err
 	}
-	
+
 	var room map[string]interface{}
 	for _, r := range rawRooms {
 		if r["id"] == id {
@@ -276,33 +318,30 @@ func (s *RiadService) UpdateCleaningStatus(id, status string) error {
 			break
 		}
 	}
-	
+
 	if room == nil {
 		return fmt.Errorf("room not found")
 	}
-	
-	// In SQLite we use SaveRoom, but SaveRoom replaces the whole row.
-	// For simplicity and consistency with our current SQLite implementation:
+
 	err = db.SaveRoom(
-		id, 
-		int(room["numero"].(int)), 
-		room["type"].(string), 
-		room["prix"].(float64), 
-		room["description"].(string), 
-		room["equipements"].(string), 
-		room["statut"].(string), 
+		id,
+		int(room["numero"].(int)),
+		room["type"].(string),
+		room["prix"].(float64),
+		room["description"].(string),
+		room["equipements"].(string),
+		room["statut"].(string),
 		status,
 	)
-	
+
 	if err != nil {
 		return err
 	}
-	
-	// Trigger sync event to frontend
+
 	if s.app != nil {
 		s.app.Event.Emit("sync:rooms", "updated")
 	}
-	
+
 	return nil
 }
 
@@ -323,7 +362,6 @@ func (s *RiadService) StartSyncLoop() {
 			debugLog.Println("Background sync loop started (Debug mode: 10s)")
 		}
 
-		// Initial sync attempt
 		s.performSync()
 
 		for {
@@ -345,94 +383,59 @@ func (s *RiadService) performSync() {
 		return
 	}
 	if debugLog != nil {
-		debugLog.Println("Running optimized background sync...")
+		debugLog.Println("Running gRPC background sync...")
 	}
 
-	// 1. Pull updated data from server using the /sync endpoint
-	s.pullUpdates()
-
-	// 2. Push unsynced local data to server
-	s.syncReservations()
+	s.gRPCPullUpdates()
+	s.gRPCSyncReservations()
 }
 
-func (s *RiadService) pullUpdates() {
-	client := &http.Client{Timeout: 10 * time.Second}
-	url := fmt.Sprintf("%s/sync?since=%d", s.apiBaseURL, s.lastSyncTimestamp)
-	
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
+func (s *RiadService) gRPCPullUpdates() {
+	if s.grpcClient == nil {
+		if debugLog != nil {
+			debugLog.Println("gRPC pull skipped: no client")
+		}
 		return
 	}
-	req.Header.Set("Authorization", "Bearer "+s.token)
 
-	resp, err := client.Do(req)
+	resp, err := s.grpcClient.SyncData(s.grpcCtx(), &pb.SyncDataRequest{
+		LastSequenceId: s.lastSyncTimestamp,
+	})
 	if err != nil {
 		if debugLog != nil {
-			debugLog.Printf("Error pulling updates: %v\n", err)
+			debugLog.Printf("gRPC SyncData failed: %v\n", err)
 		}
 		return
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		var syncData struct {
-			Chambres     []map[string]interface{} `json:"chambres"`
-			Reservations []map[string]interface{} `json:"reservations"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&syncData); err != nil {
+	for _, room := range resp.Rooms {
+		if err := db.SaveRoom(room.Id, int(room.Number), room.Type, room.Price, room.Description, room.Equipments, room.Status, room.CleaningStatus); err != nil {
 			if debugLog != nil {
-				debugLog.Printf("Error decoding sync data: %v\n", err)
-			}
-			return
-		}
-
-		// Update local rooms
-		for _, r := range syncData.Chambres {
-			id, _ := r["id"].(string)
-			num, _ := r["numero"].(float64)
-			roomType, _ := r["type"].(string)
-			price, _ := r["prix"].(float64)
-			desc, _ := r["description"].(string)
-			equip, _ := r["equipements"].(string)
-			status, _ := r["statut"].(string)
-			cleaningStatus, _ := r["cleaning_status"].(string)
-			if cleaningStatus == "" {
-				cleaningStatus = "propre"
-			}
-
-			if err := db.SaveRoom(id, int(num), roomType, price, desc, equip, status, cleaningStatus); err != nil {
-				if debugLog != nil {
-					debugLog.Printf("Error saving pulled room %s: %v\n", id, err)
-				}
+				debugLog.Printf("Error saving pulled room %s: %v\n", room.Id, err)
 			}
 		}
+	}
 
-		// Update local reservations
-		for _, r := range syncData.Reservations {
-			id, _ := r["id"].(string)
-			uId, _ := r["user_id"].(string)
-			rId, _ := r["chambre_id"].(string)
-			start, _ := r["date_debut"].(string)
-			end, _ := r["date_fin"].(string)
-			amount, _ := r["montant"].(float64)
-			status, _ := r["statut"].(string)
-
-			if err := db.SaveReservation(id, uId, rId, start, end, amount, status); err != nil {
-				if debugLog != nil {
-					debugLog.Printf("Error saving pulled reservation %s: %v\n", id, err)
-				}
+	for _, res := range resp.Reservations {
+		if err := db.SaveReservation(res.Id, res.UserId, res.RoomId, res.StartDate, res.EndDate, res.Amount, res.Status); err != nil {
+			if debugLog != nil {
+				debugLog.Printf("Error saving pulled reservation %s: %v\n", res.Id, err)
 			}
-			db.MarkSynced("reservations", id)
 		}
+		db.MarkSynced("reservations", res.Id)
+	}
 
-		s.lastSyncTimestamp = time.Now().Unix()
-		if debugLog != nil {
-			debugLog.Printf("Successfully synced %d rooms and %d reservations from server\n", len(syncData.Chambres), len(syncData.Reservations))
-		}
+	s.lastSyncTimestamp = time.Now().Unix()
+	if debugLog != nil {
+		debugLog.Printf("Successfully synced %d rooms and %d reservations from server via gRPC\n", len(resp.Rooms), len(resp.Reservations))
 	}
 }
 
-func (s *RiadService) syncReservations() {
+func (s *RiadService) gRPCSyncReservations() {
+	if s.grpcClient == nil {
+		return
+	}
+
 	unsynced, err := db.GetUnsynced("reservations")
 	if err != nil {
 		if debugLog != nil {
@@ -445,49 +448,35 @@ func (s *RiadService) syncReservations() {
 		return
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
-
 	for _, resMap := range unsynced {
-		// Map map[string]interface{} to the expected JSON payload
-		payload := map[string]interface{}{
-			"user_id":    resMap["user_id"],
-			"chambre_id": resMap["chambre_id"],
-			"date_debut": resMap["date_debut"],
-			"date_fin":   resMap["date_fin"],
-			"montant":    resMap["montant"],
-		}
+		userID, _ := resMap["user_id"].(string)
+		roomID, _ := resMap["chambre_id"].(string)
+		start, _ := resMap["date_debut"].(string)
+		end, _ := resMap["date_fin"].(string)
+		amount, _ := resMap["montant"].(float64)
+		id, _ := resMap["id"].(string)
 
-		jsonPayload, _ := json.Marshal(payload)
-		req, err := http.NewRequest("POST", s.apiBaseURL+"/reservations", bytes.NewBuffer(jsonPayload))
-		if err != nil {
-			continue
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+s.token)
-
-		resp, err := client.Do(req)
+		resp, err := s.grpcClient.CreateReservation(s.grpcCtx(), &pb.CreateReservationRequest{
+			UserId:    userID,
+			RoomId:    roomID,
+			StartDate: start,
+			EndDate:   end,
+			Amount:    amount,
+		})
 		if err != nil {
 			if debugLog != nil {
-				debugLog.Printf("Sync failed for reservation %v: %v\n", resMap["id"], err)
+				debugLog.Printf("gRPC sync failed for reservation %s: %v\n", id, err)
 			}
 			continue
 		}
-		defer resp.Body.Close()
 
-		if resp.StatusCode == http.StatusCreated {
-			id := fmt.Sprintf("%v", resMap["id"])
+		if resp.Id != "" {
 			if err := db.MarkSynced("reservations", id); err != nil {
 				if debugLog != nil {
 					debugLog.Printf("Error marking reservation %s as synced: %v\n", id, err)
 				}
 			} else if debugLog != nil {
-				debugLog.Printf("Successfully synced reservation %s\n", id)
-			}
-		} else {
-			body, _ := io.ReadAll(resp.Body)
-			if debugLog != nil {
-				debugLog.Printf("Server rejected reservation %v with status %d: %s\n", resMap["id"], resp.StatusCode, string(body))
+				debugLog.Printf("Successfully synced reservation %s via gRPC (server id: %s)\n", id, resp.Id)
 			}
 		}
 	}

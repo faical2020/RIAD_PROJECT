@@ -1,5 +1,13 @@
 import { useRiadStore } from '../stores/riad'
 
+function debounce(fn, delay) {
+    let timer = null
+    return function (...args) {
+        clearTimeout(timer)
+        timer = setTimeout(() => fn(...args), delay)
+    }
+}
+
 export const sseProvider = {
     init() {
         const riadStore = useRiadStore()
@@ -11,6 +19,9 @@ export const sseProvider = {
             return;
         }
 
+        const debouncedRooms = debounce(() => riadStore.fetchChambres(), 500)
+        const debouncedReservations = debounce(() => riadStore.fetchReservations(), 500)
+
         const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
         const eventSource = new EventSource(`${baseUrl}/sync/events?token=${token}`);
         
@@ -18,8 +29,8 @@ export const sseProvider = {
         eventSource.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                if (data.type === 'ROOM_UPDATED') riadStore.fetchChambres();
-                else if (data.type === 'RESERVATION_UPDATED') riadStore.fetchReservations();
+                if (data.type === 'ROOM_UPDATED') debouncedRooms();
+                else if (data.type === 'RESERVATION_UPDATED') debouncedReservations();
             } catch (e) {
                 console.error('[Sync] SSE Parse error:', e);
             }

@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --config vite.config.desktop.js --mode desktop",
     "dev:web": "vite --config vite.config.web.js --mode web",
-    "build:dev": "vite build --config vite.config.desktop.js --minify false --mode development",
-    "build": "vite build --config vite.config.desktop.js --mode production",
+    "build:dev": "vite build --config vite.config.desktop.js --minify false --mode desktop",
+    "build": "vite build --config vite.config.desktop.js --mode desktop",
     "build:web": "vite build --config vite.config.web.js --mode web",
     "build:desktop": "vite build --config vite.config.desktop.js --mode desktop",
     "preview": "vite preview"

@@ -19,7 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SyncService_StreamUpdates_FullMethodName = "/riad.sync.SyncService/StreamUpdates"
+	SyncService_StreamUpdates_FullMethodName        = "/riad.sync.SyncService/StreamUpdates"
+	SyncService_GetChambres_FullMethodName          = "/riad.sync.SyncService/GetChambres"
+	SyncService_CreateReservation_FullMethodName    = "/riad.sync.SyncService/CreateReservation"
+	SyncService_UpdateCleaningStatus_FullMethodName = "/riad.sync.SyncService/UpdateCleaningStatus"
+	SyncService_Checkin_FullMethodName              = "/riad.sync.SyncService/Checkin"
+	SyncService_Checkout_FullMethodName             = "/riad.sync.SyncService/Checkout"
+	SyncService_SyncData_FullMethodName             = "/riad.sync.SyncService/SyncData"
 )
 
 // SyncServiceClient is the client API for SyncService service.
@@ -28,6 +34,13 @@ const (
 type SyncServiceClient interface {
 	// Server-to-Client streaming RPC for real-time updates
 	StreamUpdates(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SyncEvent], error)
+	// Mutation RPCs (authenticated via gRPC metadata/interceptors)
+	GetChambres(ctx context.Context, in *GetChambresRequest, opts ...grpc.CallOption) (*GetChambresResponse, error)
+	CreateReservation(ctx context.Context, in *CreateReservationRequest, opts ...grpc.CallOption) (*CreateReservationResponse, error)
+	UpdateCleaningStatus(ctx context.Context, in *UpdateCleaningStatusRequest, opts ...grpc.CallOption) (*UpdateCleaningStatusResponse, error)
+	Checkin(ctx context.Context, in *CheckinRequest, opts ...grpc.CallOption) (*CheckinResponse, error)
+	Checkout(ctx context.Context, in *CheckoutRequest, opts ...grpc.CallOption) (*CheckoutResponse, error)
+	SyncData(ctx context.Context, in *SyncDataRequest, opts ...grpc.CallOption) (*SyncDataResponse, error)
 }
 
 type syncServiceClient struct {
@@ -57,12 +70,79 @@ func (c *syncServiceClient) StreamUpdates(ctx context.Context, in *SyncRequest, 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type SyncService_StreamUpdatesClient = grpc.ServerStreamingClient[SyncEvent]
 
+func (c *syncServiceClient) GetChambres(ctx context.Context, in *GetChambresRequest, opts ...grpc.CallOption) (*GetChambresResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetChambresResponse)
+	err := c.cc.Invoke(ctx, SyncService_GetChambres_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *syncServiceClient) CreateReservation(ctx context.Context, in *CreateReservationRequest, opts ...grpc.CallOption) (*CreateReservationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateReservationResponse)
+	err := c.cc.Invoke(ctx, SyncService_CreateReservation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *syncServiceClient) UpdateCleaningStatus(ctx context.Context, in *UpdateCleaningStatusRequest, opts ...grpc.CallOption) (*UpdateCleaningStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateCleaningStatusResponse)
+	err := c.cc.Invoke(ctx, SyncService_UpdateCleaningStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *syncServiceClient) Checkin(ctx context.Context, in *CheckinRequest, opts ...grpc.CallOption) (*CheckinResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckinResponse)
+	err := c.cc.Invoke(ctx, SyncService_Checkin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *syncServiceClient) Checkout(ctx context.Context, in *CheckoutRequest, opts ...grpc.CallOption) (*CheckoutResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CheckoutResponse)
+	err := c.cc.Invoke(ctx, SyncService_Checkout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *syncServiceClient) SyncData(ctx context.Context, in *SyncDataRequest, opts ...grpc.CallOption) (*SyncDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyncDataResponse)
+	err := c.cc.Invoke(ctx, SyncService_SyncData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SyncServiceServer is the server API for SyncService service.
 // All implementations must embed UnimplementedSyncServiceServer
 // for forward compatibility.
 type SyncServiceServer interface {
 	// Server-to-Client streaming RPC for real-time updates
 	StreamUpdates(*SyncRequest, grpc.ServerStreamingServer[SyncEvent]) error
+	// Mutation RPCs (authenticated via gRPC metadata/interceptors)
+	GetChambres(context.Context, *GetChambresRequest) (*GetChambresResponse, error)
+	CreateReservation(context.Context, *CreateReservationRequest) (*CreateReservationResponse, error)
+	UpdateCleaningStatus(context.Context, *UpdateCleaningStatusRequest) (*UpdateCleaningStatusResponse, error)
+	Checkin(context.Context, *CheckinRequest) (*CheckinResponse, error)
+	Checkout(context.Context, *CheckoutRequest) (*CheckoutResponse, error)
+	SyncData(context.Context, *SyncDataRequest) (*SyncDataResponse, error)
 	mustEmbedUnimplementedSyncServiceServer()
 }
 
@@ -75,6 +155,24 @@ type UnimplementedSyncServiceServer struct{}
 
 func (UnimplementedSyncServiceServer) StreamUpdates(*SyncRequest, grpc.ServerStreamingServer[SyncEvent]) error {
 	return status.Error(codes.Unimplemented, "method StreamUpdates not implemented")
+}
+func (UnimplementedSyncServiceServer) GetChambres(context.Context, *GetChambresRequest) (*GetChambresResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetChambres not implemented")
+}
+func (UnimplementedSyncServiceServer) CreateReservation(context.Context, *CreateReservationRequest) (*CreateReservationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateReservation not implemented")
+}
+func (UnimplementedSyncServiceServer) UpdateCleaningStatus(context.Context, *UpdateCleaningStatusRequest) (*UpdateCleaningStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateCleaningStatus not implemented")
+}
+func (UnimplementedSyncServiceServer) Checkin(context.Context, *CheckinRequest) (*CheckinResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Checkin not implemented")
+}
+func (UnimplementedSyncServiceServer) Checkout(context.Context, *CheckoutRequest) (*CheckoutResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Checkout not implemented")
+}
+func (UnimplementedSyncServiceServer) SyncData(context.Context, *SyncDataRequest) (*SyncDataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SyncData not implemented")
 }
 func (UnimplementedSyncServiceServer) mustEmbedUnimplementedSyncServiceServer() {}
 func (UnimplementedSyncServiceServer) testEmbeddedByValue()                     {}
@@ -108,13 +206,146 @@ func _SyncService_StreamUpdates_Handler(srv interface{}, stream grpc.ServerStrea
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type SyncService_StreamUpdatesServer = grpc.ServerStreamingServer[SyncEvent]
 
+func _SyncService_GetChambres_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetChambresRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SyncServiceServer).GetChambres(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SyncService_GetChambres_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SyncServiceServer).GetChambres(ctx, req.(*GetChambresRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SyncService_CreateReservation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateReservationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SyncServiceServer).CreateReservation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SyncService_CreateReservation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SyncServiceServer).CreateReservation(ctx, req.(*CreateReservationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SyncService_UpdateCleaningStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateCleaningStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SyncServiceServer).UpdateCleaningStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SyncService_UpdateCleaningStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SyncServiceServer).UpdateCleaningStatus(ctx, req.(*UpdateCleaningStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SyncService_Checkin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckinRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SyncServiceServer).Checkin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SyncService_Checkin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SyncServiceServer).Checkin(ctx, req.(*CheckinRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SyncService_Checkout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SyncServiceServer).Checkout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SyncService_Checkout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SyncServiceServer).Checkout(ctx, req.(*CheckoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SyncService_SyncData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyncDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SyncServiceServer).SyncData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SyncService_SyncData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SyncServiceServer).SyncData(ctx, req.(*SyncDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SyncService_ServiceDesc is the grpc.ServiceDesc for SyncService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SyncService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "riad.sync.SyncService",
 	HandlerType: (*SyncServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetChambres",
+			Handler:    _SyncService_GetChambres_Handler,
+		},
+		{
+			MethodName: "CreateReservation",
+			Handler:    _SyncService_CreateReservation_Handler,
+		},
+		{
+			MethodName: "UpdateCleaningStatus",
+			Handler:    _SyncService_UpdateCleaningStatus_Handler,
+		},
+		{
+			MethodName: "Checkin",
+			Handler:    _SyncService_Checkin_Handler,
+		},
+		{
+			MethodName: "Checkout",
+			Handler:    _SyncService_Checkout_Handler,
+		},
+		{
+			MethodName: "SyncData",
+			Handler:    _SyncService_SyncData_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "StreamUpdates",

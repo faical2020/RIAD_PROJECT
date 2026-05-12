@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"RIAD_SERVER/internal/sync"
+	"RIAD_SERVER/internal/eventbus"
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,7 +20,7 @@ func SseSyncHandler(c *gin.Context) {
 	
 	log.Printf("[SSE] Web client connected to sync stream. Token: %s...", token[:10])
 
-	eventChan := sync.GlobalBus.Subscribe()
+	eventChan := eventbus.GlobalBus.Subscribe()
 
 	// Set headers for SSE
 	c.Writer.Header().Set("Content-Type", "text/event-stream")
